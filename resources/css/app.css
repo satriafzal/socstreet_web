@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    /* Base backgrounds */
+    --color-bg-base: #121212;
+    --color-bg-surface: #181818;
+    --color-bg-card: #1E1E1E;
+    --color-bg-card-hover: #242424;
+    --color-bg-input: #1F1F1F;
+    --color-bg-card-light: #FFFFFF;
+    --color-footer-bg: #0D0D0D;
+
+    /* Brand accents & status */
+    --color-brand-primary: #16A34A;
+    --color-brand-hover: #15803D;
+    --color-brand-active: #22C55E;
+    --color-brand-subtle: rgba(22, 163, 74, 0.15);
+    --color-status-danger: #EF4444;
+
+    /* Typography & border */
+    --color-text-primary: #FFFFFF;
+    --color-text-secondary: #A1A1AA;
+    --color-text-muted: #71717A;
+    --color-text-dark: #0F172A;
+    --color-border-subtle: #27272A;
+    --color-border-focus: #16A34A;
+}
+
+:root {
+    --bg-base: #121212;
+    --bg-surface: #181818;
+    --bg-card: #1E1E1E;
+    --bg-card-hover: #242424;
+    --bg-input: #1F1F1F;
+    --footer-bg: #0D0D0D;
+
+    --brand-primary: #16A34A;
+    --brand-hover: #15803D;
+    --brand-active: #22C55E;
+    --brand-subtle: rgba(22, 163, 74, 0.15);
+    --status-danger: #EF4444;
+
+    --text-primary: #FFFFFF;
+    --text-secondary: #A1A1AA;
+    --text-muted: #71717A;
+    --border-subtle: #27272A;
+    --border-focus: #16A34A;
+}
+
+body {
+    background-color: #121212;
+    color: #FFFFFF;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    min-height: 100vh;
+}
+
+/* Custom scrollbars for dark mode */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #121212;
+}
+::-webkit-scrollbar-thumb {
+    background: #27272A;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #3F3F46;
+}
