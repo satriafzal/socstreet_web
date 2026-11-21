@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -20,7 +19,10 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'username',
+        'email',
         'password',
+        'role',
+        'role_id',
     ];
 
     /**
@@ -42,6 +44,31 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'role_id' => 'integer',
         ];
+    }
+
+    /**
+     * Check if user is an admin.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin' || $this->role_id === 1;
+    }
+
+    /**
+     * Check if user is a standard customer.
+     */
+    public function isUser(): bool
+    {
+        return $this->role === 'user' || $this->role_id === 2;
+    }
+
+    /**
+     * Get bookings made by this user.
+     */
+    public function bookings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Booking::class);
     }
 }
