@@ -7,12 +7,12 @@
                 <span class="text-xs font-semibold text-[#16A34A] uppercase tracking-wider">Histori Transaksi</span>
             </div>
             <h1 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Booking Saya</h1>
-            <p class="text-xs sm:text-sm text-[#A1A1AA] mt-1">Daftar jadwal dan status pemesanan Anda di Socstreet Main Arena.</p>
+            <p class="text-xs sm:text-sm text-[#A1A1AA] mt-1">Daftar sesi pertandingan Anda di Socstreet Main Arena (durasi minimum 2 jam per sesi).</p>
         </div>
 
         <x-button variant="primary" size="md" href="{{ route('booking.schedule') }}" class="shadow-lg shadow-[#16A34A]/25 self-start sm:self-auto">
             <x-icon name="calendar" class="w-4 h-4" />
-            <span>Pesan Jadwal Baru</span>
+            <span>Pesan Sesi Baru (Min. 2 Jam)</span>
         </x-button>
     </div>
 
@@ -52,9 +52,9 @@
                     <tr class="border-b border-[#27272A] bg-[#141414] text-[11px] font-bold uppercase tracking-wider text-[#71717A]">
                         <th class="py-4 px-6">Booking ID</th>
                         <th class="py-4 px-6">Tanggal Main</th>
-                        <th class="py-4 px-6">Jam Main</th>
+                        <th class="py-4 px-6">Sesi Jam & Durasi</th>
                         <th class="py-4 px-6">Tipe & Metode</th>
-                        <th class="py-4 px-6 text-right">Total Harga</th>
+                        <th class="py-4 px-6 text-right">Total Tagihan</th>
                         <th class="py-4 px-6 text-center">Status</th>
                     </tr>
                 </thead>
@@ -71,12 +71,17 @@
                                 {{ $booking['book_date'] }}
                             </td>
 
-                            <!-- Jam Main -->
+                            <!-- Jam Main & Durasi (Strict 2 Hours per Block) -->
                             <td class="py-4 px-6">
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#1F1F1F] border border-[#27272A] text-white font-mono text-xs">
-                                    <x-icon name="clock" class="w-3.5 h-3.5 text-[#16A34A]" />
-                                    {{ $booking['start_time'] }} - {{ $booking['end_time'] }}
-                                </span>
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#1F1F1F] border border-[#27272A] text-white font-mono text-xs">
+                                        <x-icon name="clock" class="w-3.5 h-3.5 text-[#16A34A]" />
+                                        {{ $booking['start_time'] }} - {{ $booking['end_time'] }}
+                                    </span>
+                                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#16A34A]/15 text-[#22C55E] border border-[#16A34A]/30">
+                                        {{ $booking['duration'] ?? 2 }} Jam
+                                    </span>
+                                </div>
                             </td>
 
                             <!-- Tipe Pembayaran & Metode -->
@@ -85,9 +90,14 @@
                                 <p class="text-[11px] text-[#71717A]">{{ $booking['payment_method'] }}</p>
                             </td>
 
-                            <!-- Total Harga -->
+                            <!-- Total Tagihan -->
                             <td class="py-4 px-6 text-right font-bold text-white font-mono">
                                 Rp {{ number_format($booking['total_price'], 0, ',', '.') }}
+                                @if(str_contains($booking['payment_type'], 'DP'))
+                                    <span class="block text-[10px] text-amber-400 font-normal">
+                                        (Dibayar: Rp {{ number_format($booking['amount_paid'], 0, ',', '.') }})
+                                    </span>
+                                @endif
                             </td>
 
                             <!-- Status Badge (No row action buttons per PRD 4.5) -->
@@ -125,9 +135,8 @@
 
         <!-- Table Footer Metadata -->
         <div class="p-4 bg-[#141414] border-t border-[#27272A] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#71717A]">
-            <span>Menampilkan {{ count($bookings) }} transaksi &bull; Socstreet Main Arena</span>
+            <span>Menampilkan {{ count($bookings) }} transaksi &bull; Socstreet Main Arena (Sesi 2 Jam)</span>
             <span class="text-[11px]">Tunjukkan ID Booking pada resepsionis saat memasuki arena</span>
         </div>
     </div>
 </x-layouts.dashboard>
-
