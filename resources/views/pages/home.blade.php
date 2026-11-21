@@ -41,7 +41,7 @@
 
                 <!-- CTA Actions (Staggered Animation 4) -->
                 <div class="animate-fade-in-up [animation-delay:500ms] flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-4">
-                    <x-button variant="primary" size="lg" href="{{ route('booking.schedule') }}" class="w-full sm:w-auto shadow-xl shadow-[#16A34A]/30 hover:scale-[1.03] active:scale-[0.98] transition-all group">
+                    <x-button variant="primary" size="lg" href="{{ auth()->check() ? route('booking.schedule') : route('login') }}" class="w-full sm:w-auto shadow-xl shadow-[#16A34A]/30 hover:scale-[1.03] active:scale-[0.98] transition-all group">
                         <span>Cek Jadwal Lapangan</span>
                         <x-icon name="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </x-button>
@@ -99,27 +99,21 @@
                 <div class="grid grid-cols-1 lg:grid-cols-12">
                     <!-- Visual / Image Area (16:9 on responsive) -->
                     <div class="lg:col-span-7 relative min-h-[300px] lg:min-h-[460px] bg-[#121212] flex items-center justify-center overflow-hidden border-b lg:border-b-0 lg:border-r border-[#27272A] group">
-                        <!-- Synthetic Turf Photo Layer with Zoom effect -->
-                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105 opacity-40 mix-blend-luminosity"
-                             style="background-image: url('https://images.unsplash.com/photo-1556056504-5c7696c4c28d?auto=format&fit=crop&w=1200&q=80');"></div>
-                        <div class="absolute inset-0 bg-gradient-to-t from-[#1E1E1E] via-[#121212]/60 to-transparent"></div>
-                        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#16A34A]/25 via-transparent to-transparent"></div>
-                        
-                        <!-- Simulated Football Pitch Graphic -->
-                        <div class="w-[85%] h-[80%] border-2 border-white/25 rounded-lg relative flex items-center justify-center p-4 backdrop-blur-[1px] group-hover:border-white/40 transition-colors">
-                            <!-- Center line & circle -->
-                            <div class="absolute inset-y-0 left-1/2 w-0.5 bg-white/20 -translate-x-1/2"></div>
-                            <div class="w-24 h-24 rounded-full border-2 border-white/20 flex items-center justify-center">
-                                <div class="w-2 h-2 rounded-full bg-[#22C55E]"></div>
-                            </div>
-                            <!-- Penalty boxes -->
-                            <div class="absolute left-0 top-1/2 -translate-y-1/2 w-16 h-36 border-2 border-l-0 border-white/20"></div>
-                            <div class="absolute right-0 top-1/2 -translate-y-1/2 w-16 h-36 border-2 border-r-0 border-white/20"></div>
-                            
-                            <!-- Pitch Text Overlay -->
-                            <div class="absolute bottom-4 left-4 z-10">
-                                <span class="text-xs uppercase tracking-widest font-mono text-white/50">Synthetic Turf • FIFA Certified</span>
-                            </div>
+                        <!-- Real Minisoccer Pitch Image with Smooth Zoom Effect -->
+                        <img
+                            src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1200&q=80"
+                            alt="Socstreet Main Arena Minisoccer Pitch"
+                            class="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105 brightness-95 contrast-105"
+                            onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=1200&q=80';"
+                        />
+                        <!-- Subtle dark vignette gradients -->
+                        <div class="absolute inset-0 bg-gradient-to-t from-[#1E1E1E] via-transparent to-black/30 pointer-events-none"></div>
+                        <div class="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent pointer-events-none"></div>
+
+                        <!-- Pitch Monofilament Turf Badge (Bottom-Left) -->
+                        <div class="absolute bottom-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/75 backdrop-blur-md border border-white/10 text-white shadow-lg">
+                            <span class="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse"></span>
+                            <span class="text-xs font-semibold tracking-wide font-mono">FIFA Monofilament Turf • 42x25m</span>
                         </div>
 
                         <!-- Top-Left Pill Badge: Available Today -->
@@ -199,11 +193,11 @@
                             <div>
                                 <p class="text-[11px] text-[#71717A] uppercase font-semibold">Mulai Dari</p>
                                 <div class="flex items-baseline gap-1">
-                                    <span class="text-2xl font-bold text-white">Rp 200.000</span>
-                                    <span class="text-xs text-[#71717A]">/ jam</span>
+                                    <span class="text-2xl font-bold text-white">Rp 300.000</span>
+                                    <span class="text-xs text-[#71717A]">/ 2 jam (sesi)</span>
                                 </div>
                             </div>
-                            <x-button variant="primary" size="lg" href="{{ route('booking.schedule') }}" class="shadow-lg shadow-[#16A34A]/25 hover:scale-[1.03] active:scale-[0.98] transition-all group">
+                            <x-button variant="primary" size="lg" href="{{ auth()->check() ? route('booking.schedule') : route('login') }}" class="shadow-lg shadow-[#16A34A]/25 hover:scale-[1.03] active:scale-[0.98] transition-all group">
                                 <span>Cek Jadwal</span>
                                 <x-icon name="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </x-button>
