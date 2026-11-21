@@ -27,22 +27,16 @@ class BookingController extends Controller
             ];
         }
 
-        // Available time slots from 08:00 to 23:00
+        // Available time slots (Strict 2-hour sessions: 08:00 to 22:00)
+        // Minimum booking is 2 hours (1 session). Adding hours must be in increments of 2 hours.
         $allSlots = [
-            ['time' => '08:00 - 09:00', 'price' => 200000, 'category' => 'Pagi', 'is_booked' => false],
-            ['time' => '09:00 - 10:00', 'price' => 200000, 'category' => 'Pagi', 'is_booked' => true],
-            ['time' => '10:00 - 11:00', 'price' => 200000, 'category' => 'Pagi', 'is_booked' => false],
-            ['time' => '11:00 - 12:00', 'price' => 200000, 'category' => 'Siang', 'is_booked' => false],
-            ['time' => '13:00 - 14:00', 'price' => 220000, 'category' => 'Siang', 'is_booked' => false],
-            ['time' => '14:00 - 15:00', 'price' => 220000, 'category' => 'Siang', 'is_booked' => false],
-            ['time' => '15:00 - 16:00', 'price' => 250000, 'category' => 'Sore', 'is_booked' => true],
-            ['time' => '16:00 - 17:00', 'price' => 250000, 'category' => 'Sore', 'is_booked' => true],
-            ['time' => '17:00 - 18:00', 'price' => 250000, 'category' => 'Sore', 'is_booked' => false],
-            ['time' => '18:00 - 19:00', 'price' => 275000, 'category' => 'Malam (Prime)', 'is_booked' => false],
-            ['time' => '19:00 - 20:00', 'price' => 275000, 'category' => 'Malam (Prime)', 'is_booked' => true],
-            ['time' => '20:00 - 21:00', 'price' => 275000, 'category' => 'Malam (Prime)', 'is_booked' => false],
-            ['time' => '21:00 - 22:00', 'price' => 250000, 'category' => 'Malam', 'is_booked' => false],
-            ['time' => '22:00 - 23:00', 'price' => 250000, 'category' => 'Malam', 'is_booked' => false],
+            ['time' => '08:00 - 10:00', 'duration' => 2, 'price' => 300000, 'category' => 'Pagi', 'is_booked' => false],
+            ['time' => '10:00 - 12:00', 'duration' => 2, 'price' => 300000, 'category' => 'Siang', 'is_booked' => false],
+            ['time' => '12:00 - 14:00', 'duration' => 2, 'price' => 300000, 'category' => 'Siang', 'is_booked' => false],
+            ['time' => '14:00 - 16:00', 'duration' => 2, 'price' => 300000, 'category' => 'Sore', 'is_booked' => false],
+            ['time' => '16:00 - 18:00', 'duration' => 2, 'price' => 300000, 'category' => 'Sore', 'is_booked' => true],
+            ['time' => '18:00 - 20:00', 'duration' => 2, 'price' => 350000, 'category' => 'Malam (Prime)', 'is_booked' => false],
+            ['time' => '20:00 - 22:00', 'duration' => 2, 'price' => 350000, 'category' => 'Malam (Prime)', 'is_booked' => true],
         ];
 
         return view('pages.booking.schedule', compact('selectedDate', 'availableDates', 'allSlots'));
@@ -54,8 +48,12 @@ class BookingController extends Controller
     public function checkout(Request $request): View
     {
         $bookDate = $request->query('date', Carbon::today()->format('Y-m-d'));
-        $selectedSlot = $request->query('slot', '20:00 - 21:00');
-        $basePrice = (int) $request->query('price', 275000);
+        $selectedSlot = $request->query('slot', '18:00 - 20:00');
+        $duration = (int) $request->query('duration', 2);
+        if ($duration < 2 || $duration % 2 !== 0) {
+            $duration = 2;
+        }
+        $basePrice = (int) $request->query('price', 350000);
 
         $paymentMethods = [
             [
@@ -102,7 +100,7 @@ class BookingController extends Controller
             ],
         ];
 
-        return view('pages.booking.checkout', compact('bookDate', 'selectedSlot', 'basePrice', 'paymentMethods'));
+        return view('pages.booking.checkout', compact('bookDate', 'selectedSlot', 'duration', 'basePrice', 'paymentMethods'));
     }
 
     /**
@@ -117,12 +115,13 @@ class BookingController extends Controller
                 'id' => 1,
                 'booking_id_string' => 'INV-20261021-001',
                 'book_date' => Carbon::today()->format('d M Y'),
-                'start_time' => '20:00',
-                'end_time' => '21:00',
+                'start_time' => '18:00',
+                'end_time' => '20:00',
+                'duration' => 2,
                 'payment_type' => 'DP (50%)',
                 'payment_method' => 'QRIS',
-                'total_price' => 275000,
-                'amount_paid' => 137500,
+                'total_price' => 350000,
+                'amount_paid' => 175000,
                 'status' => 'confirmed', // pending_payment, confirmed, cancelled
                 'status_label' => 'Dikonfirmasi',
             ],
@@ -130,12 +129,13 @@ class BookingController extends Controller
                 'id' => 2,
                 'booking_id_string' => 'INV-20261022-004',
                 'book_date' => Carbon::today()->addDays(1)->format('d M Y'),
-                'start_time' => '18:00',
-                'end_time' => '19:00',
+                'start_time' => '20:00',
+                'end_time' => '22:00',
+                'duration' => 2,
                 'payment_type' => 'Lunas (100%)',
                 'payment_method' => 'BCA Virtual Account',
-                'total_price' => 275000,
-                'amount_paid' => 275000,
+                'total_price' => 350000,
+                'amount_paid' => 350000,
                 'status' => 'pending_payment',
                 'status_label' => 'Menunggu Pembayaran',
             ],
@@ -143,12 +143,13 @@ class BookingController extends Controller
                 'id' => 3,
                 'booking_id_string' => 'INV-20261018-009',
                 'book_date' => Carbon::today()->subDays(3)->format('d M Y'),
-                'start_time' => '16:00',
-                'end_time' => '17:00',
+                'start_time' => '14:00',
+                'end_time' => '18:00',
+                'duration' => 4,
                 'payment_type' => 'Lunas (100%)',
                 'payment_method' => 'GoPay',
-                'total_price' => 250000,
-                'amount_paid' => 250000,
+                'total_price' => 600000,
+                'amount_paid' => 600000,
                 'status' => 'confirmed',
                 'status_label' => 'Selesai',
             ],
@@ -156,11 +157,12 @@ class BookingController extends Controller
                 'id' => 4,
                 'booking_id_string' => 'INV-20261012-015',
                 'book_date' => Carbon::today()->subDays(9)->format('d M Y'),
-                'start_time' => '21:00',
-                'end_time' => '22:00',
+                'start_time' => '08:00',
+                'end_time' => '10:00',
+                'duration' => 2,
                 'payment_type' => 'DP (50%)',
                 'payment_method' => 'Mandiri',
-                'total_price' => 250000,
+                'total_price' => 300000,
                 'amount_paid' => 0,
                 'status' => 'cancelled',
                 'status_label' => 'Dibatalkan',
