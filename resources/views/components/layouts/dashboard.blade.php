@@ -59,12 +59,6 @@
                         <x-icon name="user" class="w-4 h-4 shrink-0" />
                         <span>Pengaturan Akun</span>
                     </a>
-
-                    <!-- Back to Home -->
-                    <a href="{{ route('home') }}" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[#71717A] hover:text-white hover:bg-[#1E1E1E] transition-all">
-                        <x-icon name="arrow-left" class="w-4 h-4 shrink-0" />
-                        <span>Halaman Utama</span>
-                    </a>
                 </nav>
             </div>
 
@@ -72,20 +66,23 @@
             <div class="p-4 border-t border-[#27272A] bg-[#121212] space-y-3">
                 <!-- User Profile Snippet -->
                 <div class="flex items-center gap-3 px-2 py-1">
-                    <div class="w-8 h-8 rounded-full bg-[#1E1E1E] border border-[#27272A] flex items-center justify-center text-[#22C55E] font-bold text-xs">
-                        U
+                    <div class="w-8 h-8 rounded-full bg-[#16A34A]/20 border border-[#16A34A]/40 flex items-center justify-center text-[#22C55E] font-bold text-xs">
+                        {{ strtoupper(substr(auth()->user()->username ?? 'U', 0, 1)) }}
                     </div>
                     <div class="truncate flex-1">
-                        <p class="text-xs font-semibold text-white truncate">Player_One</p>
-                        <p class="text-[10px] text-[#71717A] truncate">Member Socstreet</p>
+                        <p class="text-xs font-semibold text-white truncate">{{ auth()->user()->username ?? 'Member' }}</p>
+                        <p class="text-[10px] text-[#71717A] truncate">{{ auth()->user()->email ?? 'member@socstreet.com' }}</p>
                     </div>
                 </div>
 
-                <!-- Logout Button (Design 4.D.2) -->
-                <a href="{{ route('home') }}" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors">
-                    <x-icon name="logout" class="w-4 h-4" />
-                    <span>Keluar Akun</span>
-                </a>
+                <!-- Logout Button -->
+                <form action="{{ route('logout') }}" method="POST" class="w-full">
+                    @csrf
+                    <button type="submit" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors">
+                        <x-icon name="logout" class="w-4 h-4" />
+                        <span>Keluar Akun</span>
+                    </button>
+                </form>
             </div>
         </aside>
 
