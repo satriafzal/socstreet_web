@@ -1,0 +1,92 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Tests\TestCase;
+
+class ProfileSettingsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected User $user;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->user = User::create([
+            'username' => 'bambang_striker',
+            'email' => 'bambang@gmail.com',
+            'password' => Hash::make('password123'),
+            'role' => 'user',
+            'role_id' => 2,
+        ]);
+    }
+
+    public function test_settings_page_fetches_logged_in_user_data()
+    {
+        $response = $this->actingAs($this->user)->get('/settings');
+
+        $response->assertStatus(200);
+        $response->assertSee('bambang_striker');
+        $response->assertSee('bambang@gmail.com');
+        $response->assertSee('Preferensi Pengguna');
+    }
+
+    public function test_user_can_update_username_with_correct_password()
+    {
+        $response = $this->actingAs($this->user)->put('/settings/username', [
+            'new_username' => 'bambang_garuda',
+            'confirm_password' => 'password123',
+        ]);
+
+        $response->assertSessionHas('success_username');
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+            'username' => 'bambang_garuda',
+        ]);
+    }
+
+    public function test_username_update_fails_if_password_incorrect()
+    {
+        $response = $this->actingAs($this->user)->put('/settings/username', [
+            'new_username' => 'bambang_garuda',
+            'confirm_password' => 'wrongpass',
+        ]);
+
+        $response->assertSessionHasErrors(['confirm_password'], errorBag: 'updateUsername');
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+            'username' => 'bambang_striker',
+        ]);
+    }
+
+    public function test_user_can_update_password()
+    {
+        $response = $this->actingAs($this->user)->put('/settings/password', [
+            'old_password' => 'password123',
+            'new_password' => 'newsecret456',
+            'new_password_confirmation' => 'newsecret456',
+        ]);
+
+        $response->assertSessionHas('success_password');
+        $this->user->refresh();
+        $this->assertTrue(Hash::check('newsecret456', $this->user->password));
+    }
+
+    public function test_password_update_fails_if_old_password_incorrect()
+    {
+        $response = $this->actingAs($this->user)->put('/settings/password', [
+            'old_password' => 'wrongoldpassword',
+            'new_password' => 'newsecret456',
+            'new_password_confirmation' => 'newsecret456',
+        ]);
+
+        $response->assertSessionHasErrors(['old_password'], errorBag: 'updatePassword');
+        $this->user->refresh();
+        $this->assertTrue(Hash::check('password123', $this->user->password));
+    }
+}
