@@ -29,8 +29,8 @@
                             <p class="text-xs text-[#71717A]">FIFA Standard Monofilament Turf • 42x25m</p>
                         </div>
                     </div>
-                    <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-[#181818] text-[#A1A1AA] border border-[#27272A]">
-                        Single Arena
+                    <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-[#181818] text-[#22C55E] border border-[#27272A]">
+                        Min. 2 Jam / Sesi
                     </span>
                 </div>
 
@@ -42,14 +42,19 @@
                         </p>
                     </div>
                     <div class="p-3 rounded-xl bg-[#181818] border border-[#27272A]">
-                        <p class="text-[#71717A] mb-1">Slot Jam Terpilih</p>
+                        <p class="text-[#71717A] mb-1">Sesi Jam Terpilih</p>
                         <p class="font-bold text-[#22C55E] text-sm" id="display-slot">
                             {{ $selectedSlot }}
                         </p>
                     </div>
                     <div class="p-3 rounded-xl bg-[#181818] border border-[#27272A]">
-                        <p class="text-[#71717A] mb-1">Durasi Sewa</p>
-                        <p class="font-bold text-white text-sm">1 Jam (60 Menit)</p>
+                        <p class="text-[#71717A] mb-1">Total Durasi Sewa</p>
+                        <p class="font-bold text-white text-sm">
+                            {{ $duration ?? 2 }} Jam ({{ ($duration ?? 2) * 60 }} Menit)
+                        </p>
+                        <span class="text-[10px] text-[#A1A1AA]">
+                            ({{ round(($duration ?? 2) / 2) }} Sesi @ 2 Jam)
+                        </span>
                     </div>
                 </div>
             </div>
@@ -78,7 +83,7 @@
                             Rp {{ number_format($basePrice * 0.5, 0, ',', '.') }}
                         </p>
                         <p class="text-xs text-[#A1A1AA] mt-1.5 leading-relaxed">
-                            Kunci jadwal sekarang. Sisa pelunasan dibayar di kasir arena sebelum bertanding.
+                            Kunci sesi bermain sekarang. Sisa pelunasan (50%) dibayar di kasir arena sebelum kickoff.
                         </p>
                     </label>
 
@@ -95,7 +100,7 @@
                             Rp {{ number_format($basePrice, 0, ',', '.') }}
                         </p>
                         <p class="text-xs text-[#A1A1AA] mt-1.5 leading-relaxed">
-                            Bebas antrean kasir. Langsung datang ke lapangan dan langsung kickoff saat jam tiba.
+                            Bebas antrean kasir. Langsung datang ke arena bersama tim dan kickoff tepat waktu.
                         </p>
                     </label>
                 </div>
@@ -145,8 +150,13 @@
                 <!-- Price Breakdown Details -->
                 <div class="space-y-3 text-xs">
                     <div class="flex items-center justify-between text-[#A1A1AA]">
-                        <span>Tarif Lapangan (1 Jam):</span>
+                        <span>Tarif Arena ({{ $duration ?? 2 }} Jam):</span>
                         <span class="font-semibold text-white">Rp {{ number_format($basePrice, 0, ',', '.') }}</span>
+                    </div>
+
+                    <div class="flex items-center justify-between text-[#A1A1AA]">
+                        <span>Durasi Pertandingan:</span>
+                        <span class="font-semibold text-white">{{ $duration ?? 2 }} Jam ({{ round(($duration ?? 2) / 2) }} Sesi)</span>
                     </div>
 
                     <div class="flex items-center justify-between text-[#A1A1AA]">
@@ -166,7 +176,7 @@
 
                     <!-- Remaining DP settlement row -->
                     <div class="flex items-center justify-between p-2.5 rounded-lg bg-[#1E1E1E] border border-[#27272A] text-[#A1A1AA]" id="remaining-row">
-                        <span>Sisa Bayar di Lokasi:</span>
+                        <span>Sisa Bayar di Kasir Arena:</span>
                         <span class="font-bold text-amber-400" id="summary-remaining">
                             Rp {{ number_format($basePrice * 0.5, 0, ',', '.') }}
                         </span>
@@ -187,7 +197,7 @@
                 <!-- Security Assurance -->
                 <div class="flex items-center gap-2 p-3 rounded-xl bg-[#1E1E1E] border border-[#27272A] text-[11px] text-[#71717A]">
                     <x-icon name="shield" class="w-4 h-4 text-[#16A34A] shrink-0" />
-                    <span>Slot otomatis terkunci selama 15 menit untuk penyelesaian transaksi.</span>
+                    <span>Sesi otomatis terkunci selama 15 menit untuk penyelesaian transaksi.</span>
                 </div>
 
                 <!-- Action Button Trigger Modal -->
@@ -200,15 +210,31 @@
     </div>
 
     <!-- Payment Instruction & Confirmation Modal -->
-    <x-modal id="payment-modal" title="Instruksi Pembayaran" subtitle="Socstreet Main Arena - Kode Booking: INV-20261021-NEW" maxWidth="lg">
+    <x-modal id="payment-modal" title="Konfirmasi & Instruksi Pembayaran" subtitle="Socstreet Main Arena - Kode Booking: INV-20261021-NEW" maxWidth="lg">
         <div class="space-y-5 text-center">
             <!-- Amount Pill -->
             <div class="p-4 rounded-xl bg-[#1E1E1E] border border-[#27272A]">
-                <p class="text-xs text-[#71717A] uppercase font-semibold">Total Tagihan Yang Harus Dibayar</p>
+                <p class="text-xs text-[#71717A] uppercase font-semibold">Total Tagihan Yang Harus Dibayar Sekarang</p>
                 <p class="text-3xl font-extrabold text-[#22C55E] mt-1" id="modal-pay-amount">
                     Rp {{ number_format($basePrice * 0.5, 0, ',', '.') }}
                 </p>
                 <p class="text-xs text-[#A1A1AA] mt-1" id="modal-pay-type-label">Tipe: Down Payment (DP 50%)</p>
+            </div>
+
+            <!-- Booking Details Summary inside Modal -->
+            <div class="grid grid-cols-2 gap-2 text-left text-xs bg-[#141414] p-3 rounded-xl border border-[#27272A]">
+                <div>
+                    <span class="text-[#71717A] block text-[11px]">Sesi Main:</span>
+                    <span class="font-bold text-white">{{ $selectedSlot }}</span>
+                </div>
+                <div>
+                    <span class="text-[#71717A] block text-[11px]">Durasi:</span>
+                    <span class="font-bold text-[#22C55E]">{{ $duration ?? 2 }} Jam ({{ round(($duration ?? 2) / 2) }} Sesi)</span>
+                </div>
+                <div class="col-span-2 pt-1 border-t border-[#27272A] flex justify-between items-center text-[11px]">
+                    <span class="text-[#71717A]">Total Biaya Lapangan:</span>
+                    <span class="font-semibold text-white">Rp {{ number_format($basePrice, 0, ',', '.') }}</span>
+                </div>
             </div>
 
             <!-- Simulated QRIS / Code Box -->
@@ -226,7 +252,7 @@
                     <span id="modal-method-label">QRIS Instant</span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span>Batas Waktu:</span>
+                    <span>Batas Waktu Pembayaran:</span>
                     <span class="text-amber-400 font-mono font-bold">14 Menit 59 Detik</span>
                 </div>
                 <p class="text-[11px] text-[#71717A] pt-1">
@@ -305,4 +331,3 @@
         }
     </script>
 </x-layouts.dashboard>
-
