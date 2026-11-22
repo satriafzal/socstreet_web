@@ -30,15 +30,19 @@ Route::post('/register', [AuthController::class, 'handleRegister'])->name('regis
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    // Booking Flow
-    Route::get('/schedule', [BookingController::class, 'schedule'])->name('booking.schedule');
-    Route::get('/checkout', [BookingController::class, 'checkout'])->name('booking.checkout');
-    Route::get('/my-bookings', [BookingController::class, 'myBookings'])->name('booking.my');
-
-    // User Settings & Policy Accordion
+    // User Settings, Force Change Password & Policy Accordion
     Route::get('/settings', [ProfileController::class, 'settings'])->name('profile.settings');
+    Route::get('/change-password', [ProfileController::class, 'settings'])->name('profile.change-password');
     Route::put('/settings/username', [ProfileController::class, 'updateUsername'])->name('profile.update-username');
     Route::put('/settings/password', [ProfileController::class, 'updatePassword'])->name('profile.update-password');
+
+    // Booking Flow (Protected by CheckMustChangePassword middleware per PRD 8.2)
+    Route::middleware('password.changed')->group(function () {
+        Route::get('/schedule', [BookingController::class, 'schedule'])->name('booking.schedule');
+        Route::get('/checkout', [BookingController::class, 'checkout'])->name('booking.checkout');
+        Route::post('/bookings', [BookingController::class, 'store'])->name('booking.store');
+        Route::get('/my-bookings', [BookingController::class, 'myBookings'])->name('booking.my');
+    });
 });
 
 // Protected Admin Panel Routes (Must be logged in as role 'admin' / role_id 1)
@@ -49,7 +53,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/bookings', [AdminController::class, 'bookings'])->name('bookings');
+    Route::get('/bookings/export', [AdminController::class, 'exportBookings'])->name('bookings.export');
+    Route::post('/bookings/{id}/confirm', [AdminController::class, 'confirmBooking'])->name('bookings.confirm');
+    Route::post('/bookings/{id}/reject', [AdminController::class, 'rejectBooking'])->name('bookings.reject');
     Route::get('/schedule', [AdminController::class, 'schedule'])->name('schedule');
+    Route::post('/schedule/pricing', [AdminController::class, 'updatePricing'])->name('schedule.pricing');
+    Route::post('/schedule/block', [AdminController::class, 'blockSlot'])->name('schedule.block');
+    Route::delete('/schedule/block/{id}', [AdminController::class, 'unblockSlot'])->name('schedule.unblock');
     Route::get('/users', [AdminController::class, 'users'])->name('users');
+    Route::post('/users', [AdminController::class, 'createUser'])->name('users.create');
+    Route::post('/users/{id}/reset-password', [AdminController::class, 'resetUserPassword'])->name('users.reset-password');
+    Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('users.delete');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
 });
