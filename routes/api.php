@@ -50,8 +50,12 @@ Route::prefix('admin')->name('api.admin.')->middleware(['auth', 'admin'])->group
     Route::delete('/schedule/block/{id}', [AdminController::class, 'unblockSlot'])->name('schedule.unblock');
     Route::get('/users', [AdminController::class, 'apiUsers'])->name('users');
     Route::post('/users', [AdminController::class, 'createUser'])->name('users.create');
+    Route::put('/users/{id}', [AdminController::class, 'updateUser'])->name('users.update');
     Route::post('/users/{id}/reset-password', [AdminController::class, 'resetUserPassword'])->name('users.reset-password');
     Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('users.delete');
+    Route::get('/settings', [AdminController::class, 'apiSettings'])->name('settings');
+    Route::match(['put', 'post'], '/settings/profile', [AdminController::class, 'updateProfile'])->name('settings.profile');
+    Route::put('/settings/password', [AdminController::class, 'updatePassword'])->name('settings.password');
 });
 Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.session.logout');
 Route::get('/auth/user', function (Request $request) {
