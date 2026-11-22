@@ -16,6 +16,13 @@
         </x-button>
     </div>
 
+    @if(session('success'))
+        <div class="mb-6 p-4 rounded-xl bg-emerald-950/40 border border-emerald-600/40 text-emerald-300 text-xs flex items-center gap-3">
+            <x-icon name="check" class="w-5 h-5 text-emerald-400 shrink-0" />
+            <p class="font-medium">{{ session('success') }}</p>
+        </div>
+    @endif
+
     <!-- Filter Tabs -->
     <div class="flex items-center gap-2 overflow-x-auto pb-2 mb-6 scrollbar-thin">
         <a 
