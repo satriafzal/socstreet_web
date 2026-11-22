@@ -52,6 +52,7 @@ class AuthApiAndFormTest extends TestCase
         ]);
 
         $response->assertRedirect(route('admin.dashboard'));
+        $response->assertSessionHas('success', 'Selamat datang kembali, admin!');
         $this->assertAuthenticated();
         $this->assertEquals('admin', auth()->user()->role);
         $this->assertEquals(1, auth()->user()->role_id);
@@ -73,9 +74,24 @@ class AuthApiAndFormTest extends TestCase
         ]);
 
         $response->assertRedirect(route('booking.schedule'));
+        $response->assertSessionHas('success', 'Selamat datang kembali, testcustomer!');
         $this->assertAuthenticated();
         $this->assertEquals('user', auth()->user()->role);
         $this->assertEquals(2, auth()->user()->role_id);
+    }
+
+    public function test_user_registers_and_gets_welcome_notification()
+    {
+        $response = $this->post('/register', [
+            'username' => 'new_member',
+            'email' => 'newmember@socstreet.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertRedirect(route('booking.schedule'));
+        $response->assertSessionHas('success', 'Selamat datang, new_member!');
+        $this->assertAuthenticated();
     }
 
     public function test_web_login_fails_with_invalid_credentials()
