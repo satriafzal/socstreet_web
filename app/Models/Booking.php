@@ -18,12 +18,14 @@ class Booking extends Model
         'book_date',
         'start_time',
         'end_time',
+        'duration',
         'status',
         'total_price',
     ];
 
     protected $casts = [
         'book_date' => 'date',
+        'duration' => 'integer',
         'total_price' => 'decimal:2',
     ];
 
