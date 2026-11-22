@@ -8,7 +8,9 @@ use App\Models\FieldSetting;
 use App\Models\Payment;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class AdminService
 {
@@ -397,6 +399,7 @@ class AdminService
                 'role_raw' => 'user',
                 'total_bookings' => $u->bookings_count ?? 0,
                 'must_change_password' => (bool) $u->must_change_password,
+                'is_active' => (bool) ($u->is_active ?? true),
                 'created_at' => Carbon::parse($u->created_at)->locale('id')->isoFormat('D MMM YYYY'),
             ];
         })->toArray();
@@ -407,6 +410,10 @@ class AdminService
      */
     public function createUser(array $data): User
     {
+        if (isset($data['role']) && strtolower(trim($data['role'])) === 'admin') {
+            throw new \InvalidArgumentException("Penambahan akun administrator tidak diizinkan. Sistem hanya memiliki 1 administrator.");
+        }
+
         $username = trim($data['username']);
 
         // Check username uniqueness
@@ -429,6 +436,40 @@ class AdminService
             'role_id' => 2,
             'must_change_password' => true,
         ]);
+    }
+
+    /**
+     * Update customer user details (e.g. username, is_active status).
+     */
+    public function updateUser(int|string $userId, array $data): User
+    {
+        $user = User::findOrFail($userId);
+
+        if ($user->isAdmin()) {
+            throw new \InvalidArgumentException("Akun administrator tidak dapat diubah melalui menu kelola pengguna.");
+        }
+
+        // Only update username if provided and not empty
+        if (!empty($data['username'])) {
+            $username = trim($data['username']);
+
+            // Only check uniqueness and update if username actually changed
+            if ($username !== $user->username) {
+                if (User::where('username', $username)->where('id', '!=', $user->id)->exists()) {
+                    throw new \InvalidArgumentException("Username '{$username}' sudah digunakan akun lain.");
+                }
+                $user->username = $username;
+            }
+        }
+
+        // Update is_active if present in data
+        if (array_key_exists('is_active', $data) && $data['is_active'] !== null) {
+            $user->is_active = filter_var($data['is_active'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        $user->save();
+
+        return $user;
     }
 
     /**
@@ -458,5 +499,79 @@ class AdminService
         }
 
         return (bool) $user->delete();
+    }
+
+    /**
+     * Get admin profile data (PRD 7.B.5).
+     */
+    public function getAdminProfile(int|string $adminId): array
+    {
+        $admin = User::findOrFail($adminId);
+
+        return [
+            'id' => $admin->id,
+            'user_id_string' => 'ADM-' . str_pad($admin->id, 3, '0', STR_PAD_LEFT),
+            'username' => $admin->username,
+            'email' => $admin->email,
+            'avatar' => $admin->avatar,
+            'avatar_url' => $admin->avatar_url,
+            'role' => 'Super Administrator',
+            'created_at' => Carbon::parse($admin->created_at)->locale('id')->isoFormat('D MMMM YYYY'),
+        ];
+    }
+
+    /**
+     * Update admin profile (avatar & username only, PRD 7.B.5).
+     */
+    public function updateAdminProfile(int|string $adminId, array $data, ?UploadedFile $avatarFile = null): User
+    {
+        $admin = User::findOrFail($adminId);
+        $username = trim($data['username'] ?? '');
+
+        if (empty($username)) {
+            throw new \InvalidArgumentException('Username wajib diisi.');
+        }
+
+        // Check if username is taken by another user
+        if (User::where('username', $username)->where('id', '!=', $admin->id)->exists()) {
+            throw new \InvalidArgumentException("Username '{$username}' sudah digunakan akun lain.");
+        }
+
+        $admin->username = $username;
+
+        if ($avatarFile) {
+            // Delete old avatar if exists
+            if ($admin->avatar && Storage::disk('public')->exists($admin->avatar)) {
+                Storage::disk('public')->delete($admin->avatar);
+            }
+
+            $path = $avatarFile->store('avatars', 'public');
+            $admin->avatar = $path;
+        }
+
+        $admin->save();
+
+        return $admin;
+    }
+
+    /**
+     * Update admin password (PRD 7.B.5).
+     */
+    public function updateAdminPassword(int|string $adminId, string $currentPassword, string $newPassword): User
+    {
+        $admin = User::findOrFail($adminId);
+
+        if (!Hash::check($currentPassword, $admin->password)) {
+            throw new \InvalidArgumentException('Password saat ini tidak cocok.');
+        }
+
+        if (strlen($newPassword) < 8) {
+            throw new \InvalidArgumentException('Password baru minimal harus 8 karakter.');
+        }
+
+        $admin->password = Hash::make($newPassword);
+        $admin->save();
+
+        return $admin;
     }
 }
