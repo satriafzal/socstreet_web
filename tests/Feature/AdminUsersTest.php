@@ -64,13 +64,24 @@ class AdminUsersTest extends TestCase
             'total_price' => 300000,
         ]);
 
+        $otherAdmin = User::create([
+            'username' => 'other_admin_acc',
+            'email' => 'otheradmin@socstreet.com',
+            'password' => Hash::make('password123'),
+            'role' => 'admin',
+            'role_id' => 1,
+            'must_change_password' => false,
+        ]);
+
         $response = $this->actingAs($this->admin)->get('/admin/users');
 
         $response->assertStatus(200);
         $response->assertSee('Kelola Pengguna Sistem');
         $response->assertSee('striker_dev');
-        $response->assertDontSee('admin_boss'); // Admin accounts must NOT be displayed
+        $response->assertDontSee('other_admin_acc'); // Admin accounts must NOT be displayed in user list
+        $this->assertFalse(collect($response->viewData('users'))->contains('username', 'admin_boss'));
         $response->assertSee('1 Sesi'); // booking count for customer
+        $response->assertSee('Status User');
     }
 
     public function test_admin_can_filter_users_by_search_and_status()
@@ -178,7 +189,7 @@ class AdminUsersTest extends TestCase
             'status' => 'success',
         ]);
 
-        $this->assertDatabaseMissing('users', [
+        $this->assertSoftDeleted('users', [
             'id' => $targetUser->id,
         ]);
     }
@@ -194,6 +205,164 @@ class AdminUsersTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'id' => $this->admin->id,
+        ]);
+    }
+
+    public function test_admin_cannot_create_another_admin_user()
+    {
+        $response = $this->actingAs($this->admin)->postJson('/admin/users', [
+            'username' => 'second_admin_attempt',
+            'role' => 'admin',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJson([
+            'status' => 'error',
+            'message' => 'Penambahan akun administrator tidak diizinkan. Sistem hanya memiliki 1 administrator.',
+        ]);
+
+        $this->assertDatabaseMissing('users', [
+            'username' => 'second_admin_attempt',
+        ]);
+    }
+
+    public function test_admin_can_update_user_username()
+    {
+        $response = $this->actingAs($this->admin)->putJson("/admin/users/{$this->customer->id}", [
+            'username' => 'striker_renamed',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'status' => 'success',
+            'data' => [
+                'id' => $this->customer->id,
+                'username' => 'striker_renamed',
+            ],
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->customer->id,
+            'username' => 'striker_renamed',
+        ]);
+    }
+
+    public function test_admin_can_update_user_status_without_changing_username()
+    {
+        // 1. Update only is_active without passing username
+        $response1 = $this->actingAs($this->admin)->putJson("/admin/users/{$this->customer->id}", [
+            'is_active' => false,
+        ]);
+
+        $response1->assertStatus(200);
+        $this->customer->refresh();
+        $this->assertFalse((bool) $this->customer->is_active);
+        $this->assertEquals('striker_dev', $this->customer->username);
+
+        // 2. Update with the exact same username kept unchanged
+        $response2 = $this->actingAs($this->admin)->putJson("/admin/users/{$this->customer->id}", [
+            'username' => 'striker_dev',
+            'is_active' => true,
+        ]);
+
+        $response2->assertStatus(200);
+        $this->customer->refresh();
+        $this->assertTrue((bool) $this->customer->is_active);
+        $this->assertEquals('striker_dev', $this->customer->username);
+    }
+
+    public function test_admin_can_deactivate_user_with_space_in_existing_username()
+    {
+        $spacedUser = User::create([
+            'username' => 'satria afzal',
+            'email' => 'satria@socstreet.test',
+            'password' => Hash::make('password123'),
+            'role' => 'user',
+            'role_id' => 2,
+            'must_change_password' => false,
+            'is_active' => true,
+        ]);
+
+        // Simulates submitting form where input still holds the existing username 'satria afzal'
+        $response = $this->actingAs($this->admin)->putJson("/admin/users/{$spacedUser->id}", [
+            'username' => 'satria afzal',
+            'is_active' => false,
+        ]);
+
+        $response->assertStatus(200);
+        $spacedUser->refresh();
+        $this->assertFalse((bool) $spacedUser->is_active);
+        $this->assertEquals('satria afzal', $spacedUser->username);
+    }
+
+    public function test_admin_can_deactivate_and_reactivate_user()
+    {
+        // Deactivate
+        $response = $this->actingAs($this->admin)->putJson("/admin/users/{$this->customer->id}", [
+            'username' => 'striker_dev',
+            'is_active' => false,
+        ]);
+
+        $response->assertStatus(200);
+        $this->customer->refresh();
+        $this->assertFalse((bool) $this->customer->is_active);
+
+        // Logout admin before testing login
+        auth()->logout();
+
+        // Deactivated user cannot login
+        $loginRes = $this->post('/login', [
+            'email' => $this->customer->email,
+            'password' => 'password123',
+        ]);
+        $loginRes->assertSessionHasErrors(['email']);
+        $this->assertGuest();
+
+        // API login also rejected with 403
+        $apiLoginRes = $this->postJson('/api/login', [
+            'email' => $this->customer->email,
+            'password' => 'password123',
+        ]);
+        $apiLoginRes->assertStatus(403);
+        $apiLoginRes->assertJsonFragment(['status' => 'error']);
+
+        // Reactivate user
+        $reactivateRes = $this->actingAs($this->admin)->putJson("/admin/users/{$this->customer->id}", [
+            'username' => 'striker_dev',
+            'is_active' => true,
+        ]);
+        $reactivateRes->assertStatus(200);
+        $this->customer->refresh();
+        $this->assertTrue((bool) $this->customer->is_active);
+    }
+
+    public function test_admin_cannot_update_user_with_duplicate_username()
+    {
+        $anotherUser = User::create([
+            'username' => 'existing_player',
+            'email' => 'existing@socstreet.com',
+            'password' => Hash::make('password123'),
+            'role' => 'user',
+            'role_id' => 2,
+            'must_change_password' => false,
+        ]);
+
+        $response = $this->actingAs($this->admin)->putJson("/admin/users/{$this->customer->id}", [
+            'username' => 'existing_player',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
+    public function test_admin_cannot_update_admin_user_via_users_endpoint()
+    {
+        $response = $this->actingAs($this->admin)->putJson("/admin/users/{$this->admin->id}", [
+            'username' => 'admin_renamed_illegal',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment([
+            'status' => 'error',
         ]);
     }
 
