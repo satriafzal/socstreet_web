@@ -104,17 +104,49 @@
 
     {{ $slot }}
 
-    <!-- Notification Toast if any -->
+    <!-- Notification Toast if any (Top Center) -->
     @if(session('success'))
-        <div id="flash-toast" class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 bg-[#181818] border border-[#16A34A]/40 text-white rounded-xl shadow-xl shadow-[#16A34A]/10 animate-fade-in">
-            <div class="w-7 h-7 rounded-lg bg-[#16A34A]/20 flex items-center justify-center text-[#22C55E]">
+        <div id="flash-toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 bg-[#181818]/95 backdrop-blur-md border border-[#16A34A]/50 text-white rounded-xl shadow-2xl shadow-[#16A34A]/20 transition-all duration-300">
+            <div class="w-7 h-7 rounded-lg bg-[#16A34A]/20 border border-[#16A34A]/40 flex items-center justify-center text-[#22C55E] shrink-0">
                 <x-icon name="check-circle" class="w-4 h-4" />
             </div>
-            <p class="text-xs font-medium">{{ session('success') }}</p>
-            <button onclick="document.getElementById('flash-toast').remove()" class="text-[#71717A] hover:text-white ml-2">
+            <p class="text-xs font-semibold text-white tracking-wide whitespace-nowrap">{{ session('success') }}</p>
+            <button onclick="document.getElementById('flash-toast').remove()" class="text-[#71717A] hover:text-white ml-2 transition-colors">
                 <x-icon name="x" class="w-4 h-4" />
             </button>
         </div>
+        <script>
+            setTimeout(() => {
+                const toast = document.getElementById('flash-toast');
+                if (toast) {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translate(-50%, -20px)';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        </script>
+    @endif
+
+    @if(session('error'))
+        <div id="flash-toast-error" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 bg-[#181818]/95 backdrop-blur-md border border-[#EF4444]/50 text-white rounded-xl shadow-2xl shadow-[#EF4444]/20 transition-all duration-300">
+            <div class="w-7 h-7 rounded-lg bg-[#EF4444]/20 border border-[#EF4444]/40 flex items-center justify-center text-[#EF4444] shrink-0">
+                <x-icon name="x" class="w-4 h-4" />
+            </div>
+            <p class="text-xs font-semibold text-white tracking-wide whitespace-nowrap">{{ session('error') }}</p>
+            <button onclick="document.getElementById('flash-toast-error').remove()" class="text-[#71717A] hover:text-white ml-2 transition-colors">
+                <x-icon name="x" class="w-4 h-4" />
+            </button>
+        </div>
+        <script>
+            setTimeout(() => {
+                const toast = document.getElementById('flash-toast-error');
+                if (toast) {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translate(-50%, -20px)';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        </script>
     @endif
 
 </body>
