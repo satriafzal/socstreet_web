@@ -62,7 +62,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::delete('/schedule/block/{id}', [AdminController::class, 'unblockSlot'])->name('schedule.unblock');
     Route::get('/users', [AdminController::class, 'users'])->name('users');
     Route::post('/users', [AdminController::class, 'createUser'])->name('users.create');
+    Route::put('/users/{id}', [AdminController::class, 'updateUser'])->name('users.update');
     Route::post('/users/{id}/reset-password', [AdminController::class, 'resetUserPassword'])->name('users.reset-password');
     Route::delete('/users/{id}', [AdminController::class, 'deleteUser'])->name('users.delete');
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+    Route::match(['put', 'post'], '/settings/profile', [AdminController::class, 'updateProfile'])->name('settings.profile');
+    Route::put('/settings/password', [AdminController::class, 'updatePassword'])->name('settings.password');
 });
