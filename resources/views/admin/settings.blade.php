@@ -38,14 +38,18 @@
                                 <p class="text-xs text-[#A1A1AA]">Identitas akun administrator aktif</p>
                             </div>
                         </div>
-                        <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#242424] text-[#D4D4D8] border border-[#27272A]">ID #01</span>
+                        <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#242424] text-[#D4D4D8] border border-[#27272A]">ID #{{ $admin['user_id_string'] ?? 'ADM-001' }}</span>
                     </div>
 
                     <!-- Avatar Section -->
                     <div class="flex flex-col items-center justify-center my-6">
                         <div class="relative group">
                             <div class="w-24 h-24 rounded-full bg-[#242424] border-2 border-[#27272A] flex items-center justify-center text-white shadow-inner overflow-hidden" id="adminAvatarDisplay">
-                                <span class="material-symbols-outlined text-[48px] text-[#A1A1AA] group-hover:scale-105 transition-transform duration-300">person</span>
+                                @if(!empty($admin['avatar_url']))
+                                    <img src="{{ $admin['avatar_url'] }}" alt="Avatar" class="w-full h-full object-cover">
+                                @else
+                                    <span class="material-symbols-outlined text-[48px] text-[#A1A1AA] group-hover:scale-105 transition-transform duration-300">person</span>
+                                @endif
                             </div>
                             <label for="avatarUploadInput" 
                                    aria-label="Ganti Avatar" 
@@ -53,10 +57,10 @@
                                    title="Unggah Foto Profil Baru">
                                 <span class="material-symbols-outlined text-[16px]">photo_camera</span>
                             </label>
-                            <input type="file" id="avatarUploadInput" class="hidden" accept="image/*" onchange="handleAvatarPreview(event)">
+                            <input type="file" id="avatarUploadInput" class="hidden" accept="image/jpeg,image/png,image/jpg,image/webp" onchange="handleAvatarPreview(event)">
                         </div>
                         <div class="mt-3 text-center">
-                            <span class="text-sm font-bold text-white block font-mono" id="displayAdminUsername">{{ $admin['username'] ?? 'admin_soc' }}</span>
+                            <span class="text-sm font-bold text-white block font-mono" id="displayAdminUsername">{{ $admin['username'] ?? 'admin' }}</span>
                             <span class="text-[11px] text-[#71717A]">Primary Root Authority</span>
                         </div>
                     </div>
@@ -70,7 +74,7 @@
                                 <input type="text" 
                                        id="admin-username" 
                                        placeholder="Masukkan username" 
-                                       value="{{ $admin['username'] ?? 'admin_soc' }}" 
+                                       value="{{ $admin['username'] ?? 'admin' }}" 
                                        required 
                                        class="w-full bg-[#1F1F1F] border border-[#27272A] focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A] rounded-lg py-2.5 pl-10 pr-4 text-white text-xs transition-colors outline-none font-mono"/>
                             </div>
@@ -78,6 +82,7 @@
 
                         <div class="pt-2">
                             <button type="submit" 
+                                    id="saveProfileBtn"
                                     class="w-full py-2.5 px-4 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all duration-200 shadow-lg shadow-[#16A34A]/20 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer">
                                 <span class="material-symbols-outlined text-[18px]">save</span>
                                 <span>Simpan Profil</span>
@@ -188,6 +193,7 @@
                         <!-- CTA Button -->
                         <div class="pt-2">
                             <button type="submit" 
+                                    id="updatePasswordBtn"
                                     class="w-full py-2.5 px-4 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all duration-200 shadow-lg shadow-[#16A34A]/20 active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer">
                                 <span class="material-symbols-outlined text-[18px]">key</span>
                                 <span>Update Password</span>
@@ -223,6 +229,12 @@
         function handleAvatarPreview(event) {
             const file = event.target.files[0];
             if (file) {
+                // Check size (2MB)
+                if (file.size > 2 * 1024 * 1024) {
+                    showAdminToast('File Terlalu Besar', 'Ukuran foto avatar maksimal 2MB.', false);
+                    event.target.value = '';
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const avatarBox = document.getElementById('adminAvatarDisplay');
@@ -233,18 +245,77 @@
             }
         }
 
-        function handleSaveProfile() {
-            const username = document.getElementById('admin-username').value.trim();
-            if (!username) return;
+        async function handleSaveProfile() {
+            const usernameInput = document.getElementById('admin-username');
+            const avatarInput = document.getElementById('avatarUploadInput');
+            const username = usernameInput.value.trim();
 
-            document.getElementById('displayAdminUsername').innerText = username;
-            showAdminToast('Profil Diperbarui', `Username admin berhasil disimpan sebagai "${username}".`, true);
+            if (!username) {
+                showAdminToast('Input Tidak Lengkap', 'Username wajib diisi.', false);
+                return;
+            }
+
+            const saveBtn = document.getElementById('saveProfileBtn');
+            const originalContent = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span><span>Menyimpan...</span>';
+
+            const formData = new FormData();
+            formData.append('_token', '{{ csrf_token() }}');
+            formData.append('_method', 'PUT');
+            formData.append('username', username);
+            if (avatarInput.files && avatarInput.files[0]) {
+                formData.append('avatar', avatarInput.files[0]);
+            }
+
+            try {
+                const response = await fetch('{{ route("admin.settings.profile") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    document.getElementById('displayAdminUsername').innerText = result.data.username;
+                    if (result.data.avatar_url) {
+                        const avatarBox = document.getElementById('adminAvatarDisplay');
+                        avatarBox.innerHTML = `<img src="${result.data.avatar_url}" alt="Avatar" class="w-full h-full object-cover">`;
+                        const headerAvatar = document.getElementById('headerAdminAvatar');
+                        if (headerAvatar) {
+                            headerAvatar.innerHTML = `<img src="${result.data.avatar_url}" alt="Avatar" class="w-full h-full object-cover rounded-full">`;
+                        }
+                    }
+                    const headerUsername = document.getElementById('headerAdminUsername');
+                    if (headerUsername) {
+                        headerUsername.innerText = result.data.username;
+                    }
+                    showAdminToast('Profil Diperbarui', result.message || 'Profil administrator berhasil disimpan.', true);
+                } else {
+                    const errorMsg = result.message || (result.errors ? Object.values(result.errors)[0][0] : 'Gagal memperbarui profil.');
+                    showAdminToast('Gagal Simpan Profil', errorMsg, false);
+                }
+            } catch (err) {
+                showAdminToast('Kesalahan Jaringan', 'Terjadi gangguan saat menghubungi server.', false);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalContent;
+            }
         }
 
-        function handleUpdatePassword() {
+        async function handleUpdatePassword() {
             const currentPass = document.getElementById('current-password').value;
             const newPass = document.getElementById('new-password').value;
             const confirmPass = document.getElementById('confirm-password').value;
+
+            if (!currentPass) {
+                showAdminToast('Password Kosong', 'Harap masukkan password saat ini.', false);
+                return;
+            }
 
             if (newPass.length < 8) {
                 showAdminToast('Password Kurang Panjang', 'Password baru minimal harus 8 karakter.', false);
@@ -256,11 +327,46 @@
                 return;
             }
 
-            document.getElementById('current-password').value = '';
-            document.getElementById('new-password').value = '';
-            document.getElementById('confirm-password').value = '';
+            const updateBtn = document.getElementById('updatePasswordBtn');
+            const originalContent = updateBtn.innerHTML;
+            updateBtn.disabled = true;
+            updateBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span><span>Memproses...</span>';
 
-            showAdminToast('Password Berhasil Diubah', 'Kata sandi administrator telah diperbarui secara aman.', true);
+            try {
+                const response = await fetch('{{ route("admin.settings.password") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        _method: 'PUT',
+                        current_password: currentPass,
+                        new_password: newPass,
+                        new_password_confirmation: confirmPass,
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    document.getElementById('current-password').value = '';
+                    document.getElementById('new-password').value = '';
+                    document.getElementById('confirm-password').value = '';
+
+                    showAdminToast('Password Diperbarui', result.message || 'Kata sandi administrator telah diperbarui.', true);
+                } else {
+                    const errorMsg = result.message || (result.errors ? Object.values(result.errors)[0][0] : 'Gagal memperbarui kata sandi.');
+                    showAdminToast('Gagal Ubah Password', errorMsg, false);
+                }
+            } catch (err) {
+                showAdminToast('Kesalahan Jaringan', 'Terjadi gangguan saat menghubungi server.', false);
+            } finally {
+                updateBtn.disabled = false;
+                updateBtn.innerHTML = originalContent;
+            }
         }
     </script>
     @endpush
