@@ -9,6 +9,18 @@
         <p class="text-xs sm:text-sm text-[#A1A1AA] mt-1">Kelola data profil, email, dan kata sandi akun Anda di Socstreet Main Arena.</p>
     </div>
 
+    @if(($user->must_change_password ?? false) || session('warning_must_change_password'))
+        <div class="mb-8 p-4 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-300 text-xs flex items-start gap-3">
+            <x-icon name="info" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+                <p class="font-bold text-amber-200">Wajib Ganti Kata Sandi Default</p>
+                <p class="mt-0.5 text-amber-300/90 leading-relaxed">
+                    {{ session('warning_must_change_password', 'Akun Anda masih menggunakan kata sandi bawaan dari Administrator. Silakan ganti kata sandi Anda pada form di bawah ini untuk membuka akses pemesanan lapangan.') }}
+                </p>
+            </div>
+        </div>
+    @endif
+
     <!-- User Profile Overview Card -->
     <div class="mb-8 p-6 rounded-2xl bg-[#181818] border border-[#27272A] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div class="flex items-center gap-4">
