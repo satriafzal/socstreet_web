@@ -35,13 +35,13 @@
                     </span>
                 </div>
                 <div class="mt-4 flex flex-col gap-1">
-                    <span class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{{ $metrics['revenue'] ?? 'Rp 12.450.000' }}</span>
+                    <span class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{{ $metrics['revenue'] ?? 'Rp 0' }}</span>
                     <div class="flex items-center gap-2 mt-1">
                         <span class="bg-[#16A34A]/20 text-[#22C55E] text-xs font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 border border-[#16A34A]/30">
                             <span class="material-symbols-outlined text-[14px]">arrow_upward</span>
-                            +15%
+                            Bulan Ini
                         </span>
-                        <span class="text-xs text-[#A1A1AA]">vs bulan lalu</span>
+                        <span class="text-xs text-[#A1A1AA]">akumulasi pendapatan</span>
                     </div>
                 </div>
             </div>
@@ -55,7 +55,7 @@
                     </span>
                 </div>
                 <div class="mt-4 flex flex-col">
-                    <span class="text-2xl sm:text-3xl font-extrabold text-[#F59E0B] tracking-tight" id="pendingCounter">{{ $metrics['pending_count'] ?? '3' }} Booking</span>
+                    <span class="text-2xl sm:text-3xl font-extrabold text-[#F59E0B] tracking-tight" id="pendingCounter">{{ $metrics['pending_count'] ?? 0 }} Booking</span>
                     <span class="text-xs text-[#A1A1AA] mt-1">Menunggu verifikasi pembayaran</span>
                 </div>
             </div>
@@ -69,7 +69,7 @@
                     </span>
                 </div>
                 <div class="mt-4 flex flex-col">
-                    <span class="text-2xl sm:text-3xl font-extrabold text-[#16A34A] tracking-tight">{{ $metrics['today_sessions'] ?? '6' }} Sesi</span>
+                    <span class="text-2xl sm:text-3xl font-extrabold text-[#16A34A] tracking-tight" id="todaySessionsCounter">{{ $metrics['today_sessions'] ?? 0 }} Sesi</span>
                     <span class="text-xs text-[#A1A1AA] mt-1">Socstreet Main Arena (FIFA Sintetis)</span>
                 </div>
             </div>
@@ -167,37 +167,83 @@
 
     @push('scripts')
     <script>
-        function handleQuickAction(bookingId, action) {
+        async function handleQuickAction(bookingId, action) {
             const row = document.getElementById('row-' + bookingId);
             if (!row) return;
 
             const statusCell = row.querySelector('.status-cell');
             const actionCell = row.querySelector('.action-cell');
+            const originalActionContent = actionCell.innerHTML;
 
-            if (action === 'confirm') {
-                statusCell.innerHTML = `
-                    <span class="inline-flex items-center gap-1.5 bg-[#16A34A]/20 text-[#22C55E] border border-[#16A34A]/30 px-2.5 py-1 rounded-full text-xs font-semibold">
-                        <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
-                        Confirmed
-                    </span>
-                `;
-                actionCell.innerHTML = `
-                    <span class="inline-flex items-center gap-1 text-xs text-[#22C55E] font-medium">
-                        <span class="material-symbols-outlined text-[16px]">check_circle</span> Terverifikasi
-                    </span>
-                `;
-                showAdminToast('Booking Disetujui', `Booking ${bookingId} telah dikonfirmasi dan slot dikunci.`);
-            } else {
-                statusCell.innerHTML = `
-                    <span class="inline-flex items-center gap-1.5 bg-[#EF4444]/20 text-[#EF4444] border border-[#EF4444]/30 px-2.5 py-1 rounded-full text-xs font-semibold">
-                        <span class="w-1.5 h-1.5 rounded-full bg-[#EF4444]"></span>
-                        Cancelled
-                    </span>
-                `;
-                actionCell.innerHTML = `
-                    <span class="text-xs text-[#71717A]">&mdash; Dibatalkan</span>
-                `;
-                showAdminToast('Booking Ditolak', `Reservasi ${bookingId} ditolak dan slot dibebaskan.`, false);
+            // Show loading state
+            actionCell.innerHTML = `
+                <span class="inline-flex items-center gap-1.5 text-xs text-[#A1A1AA]">
+                    <span class="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                    <span>Memproses...</span>
+                </span>
+            `;
+
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch(`/admin/bookings/${bookingId}/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token || ''
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal memproses aksi.');
+                }
+
+                if (action === 'confirm') {
+                    statusCell.innerHTML = `
+                        <span class="inline-flex items-center gap-1.5 bg-[#16A34A]/20 text-[#22C55E] border border-[#16A34A]/30 px-2.5 py-1 rounded-full text-xs font-semibold">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
+                            Confirmed
+                        </span>
+                    `;
+                    actionCell.innerHTML = `
+                        <span class="inline-flex items-center gap-1 text-xs text-[#22C55E] font-medium">
+                            <span class="material-symbols-outlined text-[16px]">check_circle</span> Terverifikasi
+                        </span>
+                    `;
+                    showAdminToast('Booking Disetujui', data.message || `Booking ${bookingId} telah dikonfirmasi dan slot dikunci.`);
+
+                    // Increment today sessions if session card exists
+                    const todayCounter = document.getElementById('todaySessionsCounter');
+                    if (todayCounter) {
+                        const current = parseInt(todayCounter.innerText) || 0;
+                        todayCounter.innerText = (current + 1) + ' Sesi';
+                    }
+                } else {
+                    statusCell.innerHTML = `
+                        <span class="inline-flex items-center gap-1.5 bg-[#EF4444]/20 text-[#EF4444] border border-[#EF4444]/30 px-2.5 py-1 rounded-full text-xs font-semibold">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#EF4444]"></span>
+                            Cancelled
+                        </span>
+                    `;
+                    actionCell.innerHTML = `
+                        <span class="text-xs text-[#71717A]">&mdash; Dibatalkan</span>
+                    `;
+                    showAdminToast('Booking Ditolak', data.message || `Reservasi ${bookingId} ditolak dan slot dibebaskan.`, false);
+                }
+
+                // Decrement pending counter
+                const pendingCounter = document.getElementById('pendingCounter');
+                if (pendingCounter) {
+                    const currentPending = parseInt(pendingCounter.innerText) || 0;
+                    if (currentPending > 0) {
+                        pendingCounter.innerText = (currentPending - 1) + ' Booking';
+                    }
+                }
+            } catch (err) {
+                actionCell.innerHTML = originalActionContent;
+                showAdminToast('Gagal', err.message || 'Terjadi kesalahan sistem.', false);
             }
         }
     </script>
