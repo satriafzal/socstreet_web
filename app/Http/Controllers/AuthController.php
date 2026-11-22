@@ -54,6 +54,13 @@ class AuthController extends Controller
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
+        // Force change password check (PRD 8.2)
+        if ($user->must_change_password) {
+            return redirect()
+                ->route('profile.settings')
+                ->with('warning_must_change_password', 'Demi keamanan akun, Anda wajib mengganti kata sandi default terlebih dahulu sebelum mengakses fitur pemesanan.');
+        }
+
         // Role-based internal routing (Admin -> Dashboard Admin, User -> Dashboard Jadwal)
         if ($user->isAdmin()) {
             return redirect()->intended(route('admin.dashboard'));
@@ -131,7 +138,11 @@ class AuthController extends Controller
 
         Auth::login($user, $request->boolean('remember'));
 
-        $redirectUrl = $user->isAdmin() ? route('admin.dashboard') : route('booking.schedule');
+        if ($user->must_change_password) {
+            $redirectUrl = route('profile.settings');
+        } else {
+            $redirectUrl = $user->isAdmin() ? route('admin.dashboard') : route('booking.schedule');
+        }
 
         return response()->json([
             'status' => 'success',
@@ -142,6 +153,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'role' => $user->role,
                 'role_id' => $user->role_id,
+                'must_change_password' => (bool) $user->must_change_password,
             ],
             'redirect_url' => $redirectUrl,
         ]);
