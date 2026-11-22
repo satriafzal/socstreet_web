@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CheckMustChangePassword;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\RedirectIfAuthenticatedToRole;
 use Illuminate\Foundation\Application;
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
             'redirect.auth' => RedirectIfAuthenticatedToRole::class,
+            'password.changed' => CheckMustChangePassword::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
