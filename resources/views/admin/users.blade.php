@@ -15,7 +15,7 @@
             <div class="flex items-center gap-2 self-start md:self-auto">
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1A1A1A] border border-[#27272A] text-xs font-semibold text-white shadow-sm">
                     <span class="material-symbols-outlined text-[18px] text-[#16A34A]">group</span>
-                    <span>Total <strong class="text-[#4ADE80]" id="userTotalBadge">{{ count($users ?? []) }}</strong> Pengguna Terdaftar</span>
+                    <span>Total <strong class="text-[#4ADE80]" id="userTotalBadge">{{ count($users ?? []) }}</strong> Member Terdaftar</span>
                 </div>
             </div>
         </div>
@@ -25,7 +25,7 @@
             <div class="bg-[#1A1A1A] border border-[#27272A] rounded-xl p-4 flex items-center justify-between shadow-sm">
                 <div class="flex flex-col">
                     <span class="text-[11px] font-semibold text-[#A1A1AA] uppercase tracking-wider">Member Aktif</span>
-                    <span class="text-2xl font-extrabold text-white mt-1">{{ $userStats['active_members'] ?? 3 }}</span>
+                    <span class="text-2xl font-extrabold text-white mt-1" id="statActiveMembers">{{ $userStats['active_members'] ?? 0 }}</span>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-[#27272A] flex items-center justify-center text-white">
                     <span class="material-symbols-outlined text-[20px]">sports_soccer</span>
@@ -34,18 +34,18 @@
 
             <div class="bg-[#1A1A1A] border border-[#27272A] rounded-xl p-4 flex items-center justify-between shadow-sm">
                 <div class="flex flex-col">
-                    <span class="text-[11px] font-semibold text-[#A1A1AA] uppercase tracking-wider">Super Administrator</span>
-                    <span class="text-2xl font-extrabold text-[#4ADE80] mt-1">{{ $userStats['admins'] ?? 1 }}</span>
+                    <span class="text-[11px] font-semibold text-[#A1A1AA] uppercase tracking-wider">Member Baru Bulan Ini</span>
+                    <span class="text-2xl font-extrabold text-[#4ADE80] mt-1" id="statNewMembers">{{ $userStats['new_this_month'] ?? 0 }}</span>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-[#166534]/30 border border-[#16A34A]/30 flex items-center justify-center text-[#4ADE80]">
-                    <span class="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+                    <span class="material-symbols-outlined text-[20px]">person_add</span>
                 </div>
             </div>
 
             <div class="bg-[#1A1A1A] border border-[#27272A] rounded-xl p-4 flex items-center justify-between shadow-sm">
                 <div class="flex flex-col">
                     <span class="text-[11px] font-semibold text-[#A1A1AA] uppercase tracking-wider">Total Match Sessions</span>
-                    <span class="text-2xl font-extrabold text-white mt-1">{{ $userStats['total_sessions'] ?? '9 Sesi' }}</span>
+                    <span class="text-2xl font-extrabold text-white mt-1">{{ $userStats['total_sessions'] ?? '0 Sesi' }}</span>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-[#27272A] flex items-center justify-center text-[#E4E4E7]">
                     <span class="material-symbols-outlined text-[20px]">event_available</span>
@@ -55,7 +55,7 @@
             <div class="bg-[#1A1A1A] border border-[#27272A] rounded-xl p-4 flex items-center justify-between shadow-sm">
                 <div class="flex flex-col">
                     <span class="text-[11px] font-semibold text-[#A1A1AA] uppercase tracking-wider">Perlu Tindakan</span>
-                    <span class="text-2xl font-extrabold text-[#FBBF24] mt-1">{{ $userStats['action_needed'] ?? '1 Akun' }}</span>
+                    <span class="text-2xl font-extrabold text-[#FBBF24] mt-1" id="statActionNeeded">{{ $userStats['action_needed'] ?? '0 Akun' }}</span>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-[#78350F]/30 border border-[#B45309]/40 flex items-center justify-center text-[#FBBF24]">
                     <span class="material-symbols-outlined text-[20px]">lock_reset</span>
@@ -71,15 +71,15 @@
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[#A1A1AA]">search</span>
                     <input type="text" 
                            id="userSearchInput" 
-                           placeholder="Cari username..." 
+                           placeholder="Cari username member..." 
                            class="w-full h-10 pl-9 pr-3 bg-[#1F1F1F] text-white placeholder-[#71717A] border border-[#27272A] rounded-lg text-xs focus:outline-none focus:border-[#16A34A] transition-colors"/>
                 </div>
 
-                <!-- Role Filter Pills -->
+                <!-- Password Status Filter Pills -->
                 <div class="flex items-center gap-1.5">
-                    <button type="button" class="user-role-btn h-10 px-3.5 rounded-lg bg-[#16A34A] text-white text-xs font-semibold transition-colors" data-role="all">Semua Role</button>
-                    <button type="button" class="user-role-btn h-10 px-3.5 rounded-lg bg-[#1F1F1F] text-[#A1A1AA] border border-[#27272A] text-xs font-semibold hover:text-white hover:bg-[#27272A] transition-colors" data-role="user">User</button>
-                    <button type="button" class="user-role-btn h-10 px-3.5 rounded-lg bg-[#1F1F1F] text-[#A1A1AA] border border-[#27272A] text-xs font-semibold hover:text-white hover:bg-[#27272A] transition-colors" data-role="admin">Admin</button>
+                    <button type="button" class="user-status-btn h-10 px-3.5 rounded-lg bg-[#16A34A] text-white text-xs font-semibold transition-colors" data-status="all">Semua Member</button>
+                    <button type="button" class="user-status-btn h-10 px-3.5 rounded-lg bg-[#1F1F1F] text-[#A1A1AA] border border-[#27272A] text-xs font-semibold hover:text-white hover:bg-[#27272A] transition-colors" data-status="active">Password Aktif</button>
+                    <button type="button" class="user-status-btn h-10 px-3.5 rounded-lg bg-[#1F1F1F] text-[#A1A1AA] border border-[#27272A] text-xs font-semibold hover:text-white hover:bg-[#27272A] transition-colors" data-status="need_change">Wajib Ganti Password</button>
                 </div>
             </div>
 
@@ -114,10 +114,10 @@
                                 id="user-row-{{ $u['id'] }}"
                                 data-id="{{ $u['id'] }}"
                                 data-username="{{ strtolower($u['username']) }}"
-                                data-role="{{ strtolower($u['role']) }}">
+                                data-status="{{ ($u['must_change_password'] ?? false) ? 'need_change' : 'active' }}">
                                 
                                 <!-- User ID -->
-                                <td class="px-6 py-4 font-mono font-medium text-[#D4D4D8]">{{ $u['id'] }}</td>
+                                <td class="px-6 py-4 font-mono font-medium text-[#D4D4D8]">{{ $u['user_id_string'] ?? 'USR-' . $u['id'] }}</td>
 
                                 <!-- Username -->
                                 <td class="px-6 py-4">
@@ -127,7 +127,7 @@
                                         </div>
                                         <div class="flex flex-col">
                                             <span class="text-white font-semibold text-sm">{{ $u['username'] }}</span>
-                                            <span class="text-[11px] text-[#71717A]">Terdaftar: {{ $u['created_at'] ?? '1 Nov 2026' }}</span>
+                                            <span class="text-[11px] text-[#71717A]">Terdaftar: {{ $u['created_at'] ?? 'Baru saja' }}</span>
                                         </div>
                                     </div>
                                 </td>
@@ -171,21 +171,21 @@
                                     <div class="flex items-center justify-end gap-1.5">
                                         <!-- Reset Password -->
                                         <button type="button" 
-                                                onclick="handleResetPassword('{{ $u['id'] }}', '{{ $u['username'] }}')" 
-                                                class="p-2 rounded-lg text-[#FBBF24] hover:bg-[#F59E0B]/10 transition-colors" 
+                                                onclick="handleResetPassword({{ $u['id'] }}, '{{ $u['username'] }}')" 
+                                                class="p-2 rounded-lg text-[#FBBF24] hover:bg-[#F59E0B]/10 transition-colors cursor-pointer" 
                                                 title="Reset Password ke Default">
                                             <span class="material-symbols-outlined text-[19px]">key</span>
                                         </button>
 
-                                        <!-- Delete User (Disabled for admin root) -->
-                                        @if(strtolower($u['role']) === 'admin')
-                                            <div class="p-2 text-[#52525B] cursor-not-allowed select-none" title="Akun admin terproteksi tidak dapat dihapus">
+                                        <!-- Delete User (Disabled for current logged-in user) -->
+                                        @if((int)$u['id'] === (int)auth()->id())
+                                            <div class="p-2 text-[#52525B] cursor-not-allowed select-none" title="Akun Anda saat ini terproteksi">
                                                 <span class="material-symbols-outlined text-[19px]">lock</span>
                                             </div>
                                         @else
                                             <button type="button" 
-                                                    onclick="handleDeleteUser('{{ $u['id'] }}', '{{ $u['username'] }}')" 
-                                                    class="p-2 rounded-lg text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" 
+                                                    onclick="handleDeleteUser({{ $u['id'] }}, '{{ $u['username'] }}')" 
+                                                    class="p-2 rounded-lg text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors cursor-pointer" 
                                                     title="Hapus Akun Pengguna">
                                                 <span class="material-symbols-outlined text-[19px]">delete</span>
                                             </button>
@@ -265,7 +265,7 @@
             </div>
 
             <!-- Form strictly adheres to PRD: ONLY username & role -->
-            <form id="createAccountForm" class="flex flex-col gap-4" onsubmit="event.preventDefault(); handleAddUserSubmit();">
+            <form id="createAccountForm" class="flex flex-col gap-4" onsubmit="handleAddUserSubmit(event)">
                 <!-- Username -->
                 <div class="flex flex-col gap-1.5">
                     <label class="text-[11px] font-semibold text-[#A1A1AA] uppercase tracking-wider" for="newUsername">Username</label>
@@ -284,8 +284,8 @@
                     <div class="flex flex-col gap-1.5">
                         <label class="text-[11px] font-semibold text-[#A1A1AA] uppercase tracking-wider" for="newRole">Role</label>
                         <select id="newRole" class="h-10 px-3 bg-[#1F1F1F] text-white border border-[#27272A] rounded-lg text-xs focus:outline-none focus:border-[#16A34A]">
-                            <option value="User">User (Customer)</option>
-                            <option value="Admin">Administrator</option>
+                            <option value="user">User (Customer)</option>
+                            <option value="admin">Administrator</option>
                         </select>
                     </div>
                     <div class="flex flex-col gap-1.5">
@@ -310,9 +310,10 @@
                             class="h-10 px-4 text-[#A1A1AA] hover:text-white text-xs font-semibold rounded-lg hover:bg-[#27272A] transition-colors">
                         Batal
                     </button>
-                    <button type="submit" 
-                            class="h-10 px-5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-md">
-                        Simpan Akun
+                    <button id="addUserSubmitBtn"
+                            type="submit" 
+                            class="h-10 px-5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-md flex items-center justify-center gap-1.5">
+                        <span>Simpan Akun</span>
                     </button>
                 </div>
             </form>
@@ -321,25 +322,25 @@
 
     @push('scripts')
     <script>
-        const roleBtns = document.querySelectorAll('.user-role-btn');
+        const statusBtns = document.querySelectorAll('.user-status-btn');
         const userSearchInput = document.getElementById('userSearchInput');
-        const userRows = document.querySelectorAll('.user-row');
         const visibleUserCount = document.getElementById('visibleUserCount');
 
-        let activeUserRole = 'all';
+        let activeUserStatus = 'all';
 
         function filterUsers() {
-            const query = userSearchInput.value.toLowerCase().trim();
+            const query = userSearchInput ? userSearchInput.value.toLowerCase().trim() : '';
+            const userRows = document.querySelectorAll('.user-row');
             let count = 0;
 
             userRows.forEach(row => {
                 const username = row.getAttribute('data-username');
-                const role = row.getAttribute('data-role');
+                const status = row.getAttribute('data-status');
 
-                const matchRole = (activeUserRole === 'all') || (role === activeUserRole);
+                const matchStatus = (activeUserStatus === 'all') || (status === activeUserStatus);
                 const matchSearch = !query || username.includes(query);
 
-                if (matchRole && matchSearch) {
+                if (matchStatus && matchSearch) {
                     row.style.display = '';
                     count++;
                 } else {
@@ -352,13 +353,13 @@
             }
         }
 
-        roleBtns.forEach(btn => {
+        statusBtns.forEach(btn => {
             btn.addEventListener('click', () => {
-                roleBtns.forEach(b => {
-                    b.className = 'user-role-btn h-10 px-3.5 rounded-lg bg-[#1F1F1F] text-[#A1A1AA] border border-[#27272A] text-xs font-semibold hover:text-white hover:bg-[#27272A] transition-colors';
+                statusBtns.forEach(b => {
+                    b.className = 'user-status-btn h-10 px-3.5 rounded-lg bg-[#1F1F1F] text-[#A1A1AA] border border-[#27272A] text-xs font-semibold hover:text-white hover:bg-[#27272A] transition-colors';
                 });
-                btn.className = 'user-role-btn h-10 px-3.5 rounded-lg bg-[#16A34A] text-white text-xs font-semibold transition-colors';
-                activeUserRole = btn.getAttribute('data-role');
+                btn.className = 'user-status-btn h-10 px-3.5 rounded-lg bg-[#16A34A] text-white text-xs font-semibold transition-colors';
+                activeUserStatus = btn.getAttribute('data-status');
                 filterUsers();
             });
         });
@@ -367,10 +368,157 @@
             userSearchInput.addEventListener('input', filterUsers);
         }
 
-        function handleResetPassword(userId, username) {
-            if (confirm(`Konfirmasi reset password untuk user "${username}" (${userId})?\n\nKata sandi akan di-reset ke default "socstreet123" dan akun ditandai wajib mengganti password saat login berikutnya.`)) {
+        async function handleAddUserSubmit(event) {
+            event.preventDefault();
+            const usernameInput = document.getElementById('newUsername');
+            const roleSelect = document.getElementById('newRole');
+            const submitBtn = document.getElementById('addUserSubmitBtn');
+            const originalBtnHtml = submitBtn.innerHTML;
+
+            const username = usernameInput.value.trim();
+            const role = roleSelect ? roleSelect.value : 'user';
+
+            if (!username) {
+                showAdminToast('Input Kosong', 'Silakan masukkan username pengguna.', false);
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <span class="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                <span>Menyimpan...</span>
+            `;
+
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch("{{ route('admin.users.create') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token || ''
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        role: role
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || (data.errors ? Object.values(data.errors)[0][0] : 'Gagal membuat pengguna baru.'));
+                }
+
+                document.getElementById('addUserModal').classList.add('hidden');
+                usernameInput.value = '';
+
+                const tbody = document.getElementById('usersTableBody');
+                const newRow = document.createElement('tr');
+                newRow.className = 'user-row hover:bg-[#202020] transition-colors';
+                newRow.id = `user-row-${data.data.id}`;
+                newRow.setAttribute('data-id', data.data.id);
+                newRow.setAttribute('data-username', data.data.username.toLowerCase());
+                newRow.setAttribute('data-status', 'need_change');
+
+                newRow.innerHTML = `
+                    <td class="px-6 py-4 font-mono font-medium text-[#D4D4D8]">${data.data.user_id_string}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-[#27272A] text-white flex items-center justify-center font-bold text-xs uppercase border border-[#3F3F46] shrink-0">
+                                ${data.data.username.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-white font-semibold text-sm">${data.data.username}</span>
+                                <span class="text-[11px] text-[#71717A]">Terdaftar: ${data.data.created_at}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#27272A] text-[#E4E4E7] border border-[#3F3F46]">
+                            User
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-[#E4E4E7] font-semibold font-mono">0 Sesi</span>
+                    </td>
+                    <td class="px-6 py-4 password-status-cell">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
+                            <span class="text-[#FBBF24] font-medium">Default (Wajib Ganti)</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <button type="button" 
+                                    onclick="handleResetPassword(${data.data.id}, '${data.data.username}')" 
+                                    class="p-2 rounded-lg text-[#FBBF24] hover:bg-[#F59E0B]/10 transition-colors cursor-pointer" 
+                                    title="Reset Password ke Default">
+                                <span class="material-symbols-outlined text-[19px]">key</span>
+                            </button>
+                            <button type="button" 
+                                    onclick="handleDeleteUser(${data.data.id}, '${data.data.username}')" 
+                                    class="p-2 rounded-lg text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors cursor-pointer" 
+                                    title="Hapus Akun Pengguna">
+                                <span class="material-symbols-outlined text-[19px]">delete</span>
+                            </button>
+                        </div>
+                    </td>
+                `;
+
+                tbody.prepend(newRow);
+
+                // Update badge and counts
+                const totalBadge = document.getElementById('userTotalBadge');
+                if (totalBadge) totalBadge.innerText = parseInt(totalBadge.innerText || 0) + 1;
+
+                const memStat = document.getElementById('statActiveMembers');
+                if (memStat) memStat.innerText = parseInt(memStat.innerText || 0) + 1;
+
+                const newStat = document.getElementById('statNewMembers');
+                if (newStat) newStat.innerText = parseInt(newStat.innerText || 0) + 1;
+
+                const actionNeededStat = document.getElementById('statActionNeeded');
+                if (actionNeededStat) {
+                    const cur = parseInt(actionNeededStat.innerText) || 0;
+                    actionNeededStat.innerText = (cur + 1) + ' Akun';
+                }
+
+                showAdminToast('User Berhasil Dibuat', data.message || `Akun ${username} dibuat dengan default password (socstreet123).`, true);
+                filterUsers();
+            } catch (err) {
+                showAdminToast('Gagal Menambah Akun', err.message || 'Terjadi kesalahan sistem.', false);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
+        }
+
+        async function handleResetPassword(userId, username) {
+            if (!confirm(`Konfirmasi reset password untuk user "${username}"?\n\nKata sandi akan disetel ke default "socstreet123" dan user wajib mengganti kata sandi saat login berikutnya.`)) {
+                return;
+            }
+
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch(`/admin/users/${userId}/reset-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token || ''
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal mereset password.');
+                }
+
                 const row = document.getElementById('user-row-' + userId);
                 if (row) {
+                    row.setAttribute('data-status', 'need_change');
                     const statusCell = row.querySelector('.password-status-cell');
                     if (statusCell) {
                         statusCell.innerHTML = `
@@ -381,90 +529,57 @@
                         `;
                     }
                 }
-                showAdminToast('Password Direset', `Password akun ${username} direset ke default (socstreet123).`, true);
+
+                showAdminToast('Password Direset', data.message || `Password akun ${username} direset ke default (socstreet123).`, true);
+            } catch (err) {
+                showAdminToast('Gagal Reset', err.message || 'Terjadi kesalahan sistem.', false);
             }
         }
 
-        function handleDeleteUser(userId, username) {
-            if (confirm(`PERINGATAN: Apakah Anda yakin ingin menghapus akun "${username}" (${userId})?\n\nData historis booking akan tetap tersimpan demi integritas riwayat transaksi.`)) {
+        async function handleDeleteUser(userId, username) {
+            if (!confirm(`PERINGATAN: Apakah Anda yakin ingin menghapus akun "${username}"?\n\nData akun akan dihapus dari sistem.`)) {
+                return;
+            }
+
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch(`/admin/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token || ''
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal menghapus pengguna.');
+                }
+
                 const row = document.getElementById('user-row-' + userId);
                 if (row) {
                     row.remove();
-                    filterUsers();
-                    showAdminToast('Akun Dihapus', `User ${username} telah dinonaktifkan dari sistem.`, false);
                 }
+
+                const totalBadge = document.getElementById('userTotalBadge');
+                if (totalBadge) {
+                    const cur = parseInt(totalBadge.innerText) || 0;
+                    if (cur > 0) totalBadge.innerText = cur - 1;
+                }
+
+                const memStat = document.getElementById('statActiveMembers');
+                if (memStat) {
+                    const cur = parseInt(memStat.innerText) || 0;
+                    if (cur > 0) memStat.innerText = cur - 1;
+                }
+
+                filterUsers();
+                showAdminToast('Akun Dihapus', data.message || `User ${username} telah dihapus dari sistem.`, false);
+            } catch (err) {
+                showAdminToast('Gagal Hapus', err.message || 'Terjadi kesalahan sistem.', false);
             }
-        }
-
-        function handleAddUserSubmit() {
-            const usernameInput = document.getElementById('newUsername');
-            const roleSelect = document.getElementById('newRole');
-            const username = usernameInput.value.trim();
-            const role = roleSelect.value;
-
-            if (!username) return;
-
-            document.getElementById('addUserModal').classList.add('hidden');
-
-            const tbody = document.getElementById('usersTableBody');
-            const newId = 'USR-00' + (document.querySelectorAll('.user-row').length + 1);
-
-            const newRow = document.createElement('tr');
-            newRow.className = 'user-row hover:bg-[#202020] transition-colors';
-            newRow.id = 'user-row-' + newId;
-            newRow.setAttribute('data-id', newId);
-            newRow.setAttribute('data-username', username.toLowerCase());
-            newRow.setAttribute('data-role', role.toLowerCase());
-
-            newRow.innerHTML = `
-                <td class="px-6 py-4 font-mono font-medium text-[#D4D4D8]">${newId}</td>
-                <td class="px-6 py-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-[#27272A] text-white flex items-center justify-center font-bold text-xs uppercase border border-[#3F3F46] shrink-0">
-                            ${username.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="text-white font-semibold text-sm">${username}</span>
-                            <span class="text-[11px] text-[#71717A]">Terdaftar: Hari ini</span>
-                        </div>
-                    </div>
-                </td>
-                <td class="px-6 py-4">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${role === 'Admin' ? 'bg-[#166534]/30 text-[#4ADE80] border border-[#16A34A]/40' : 'bg-[#27272A] text-[#E4E4E7] border border-[#3F3F46]'}">
-                        ${role}
-                    </span>
-                </td>
-                <td class="px-6 py-4">
-                    <span class="text-[#E4E4E7] font-semibold font-mono">0 Sesi</span>
-                </td>
-                <td class="px-6 py-4 password-status-cell">
-                    <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
-                        <span class="text-[#FBBF24] font-medium">Default (Wajib Ganti)</span>
-                    </div>
-                </td>
-                <td class="px-6 py-4 text-right">
-                    <div class="flex items-center justify-end gap-1.5">
-                        <button type="button" 
-                                onclick="handleResetPassword('${newId}', '${username}')" 
-                                class="p-2 rounded-lg text-[#FBBF24] hover:bg-[#F59E0B]/10 transition-colors" 
-                                title="Reset Password">
-                            <span class="material-symbols-outlined text-[19px]">key</span>
-                        </button>
-                        <button type="button" 
-                                onclick="handleDeleteUser('${newId}', '${username}')" 
-                                class="p-2 rounded-lg text-[#EF4444] hover:bg-[#EF4444]/10 transition-colors" 
-                                title="Hapus Akun">
-                            <span class="material-symbols-outlined text-[19px]">delete</span>
-                        </button>
-                    </div>
-                </td>
-            `;
-
-            tbody.prepend(newRow);
-            usernameInput.value = '';
-            showAdminToast('User Berhasil Dibuat', `Akun ${username} dibuat dengan default password (socstreet123).`, true);
-            filterUsers();
         }
     </script>
     @endpush
