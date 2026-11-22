@@ -104,7 +104,7 @@
         <x-admin.header :title="$title" />
 
         <!-- Main Content Area -->
-        <main class="flex-1 pt-16 bg-[#121212] px-4 sm:px-6 lg:px-8 py-6 w-full max-w-7xl mx-auto">
+        <main class="flex-1 pt-[84px] sm:pt-[88px] pb-10 bg-[#121212] px-4 sm:px-6 lg:px-8 w-full max-w-7xl mx-auto">
             {{ $slot }}
         </main>
 
@@ -113,6 +113,29 @@
             <span>Socstreet Minisoccer Management &bull; Admin Portal &bull; Single Arena Operational Control</span>
         </footer>
     </div>
+
+    <!-- Top Center Session Toast -->
+    @if(session('success'))
+        <div id="admin-session-toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 bg-[#181818]/95 backdrop-blur-md border border-[#16A34A]/50 text-white rounded-xl shadow-2xl shadow-[#16A34A]/20 transition-all duration-300">
+            <div class="w-7 h-7 rounded-lg bg-[#16A34A]/20 border border-[#16A34A]/40 flex items-center justify-center text-[#22C55E] shrink-0">
+                <span class="material-symbols-outlined text-[18px]">check_circle</span>
+            </div>
+            <p class="text-xs font-semibold text-white tracking-wide whitespace-nowrap">{{ session('success') }}</p>
+            <button onclick="document.getElementById('admin-session-toast').remove()" class="text-[#71717A] hover:text-white ml-2 transition-colors">
+                <span class="material-symbols-outlined text-[16px]">close</span>
+            </button>
+        </div>
+        <script>
+            setTimeout(() => {
+                const toast = document.getElementById('admin-session-toast');
+                if (toast) {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translate(-50%, -20px)';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 4000);
+        </script>
+    @endif
 
     <!-- Global Floating Action Toast -->
     <div id="adminActionToast" 
