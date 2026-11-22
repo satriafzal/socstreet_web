@@ -193,7 +193,7 @@
                             <div>
                                 <p class="text-[11px] text-[#71717A] uppercase font-semibold">Mulai Dari</p>
                                 <div class="flex items-baseline gap-1">
-                                    <span class="text-2xl font-bold text-white">Rp 300.000</span>
+                                    <span class="text-2xl font-bold text-white">Rp {{ number_format($arena['base_price'] ?? 300000, 0, ',', '.') }}</span>
                                     <span class="text-xs text-[#71717A]">/ 2 jam (sesi)</span>
                                 </div>
                             </div>
