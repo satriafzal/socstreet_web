@@ -38,13 +38,36 @@
                     <a href="{{ auth()->user()->isAdmin() ? route('admin.dashboard') : route('booking.schedule') }}" class="text-xs font-semibold px-3 py-2 rounded-xl bg-[#1E1E1E] border border-[#27272A] text-white hover:border-[#16A34A] transition-colors">
                         Dashboard
                     </a>
-                    <form action="{{ route('logout') }}" method="POST" class="inline">
-                        @csrf
-                        <button type="submit" class="text-xs font-semibold px-3 py-2 rounded-xl bg-[#27272A] hover:bg-[#EF4444]/20 hover:text-[#EF4444] text-[#A1A1AA] transition-colors">
-                            Keluar
-                        </button>
-                    </form>
+                    <button type="button" onclick="toggleModal('navbar-logout-modal')" class="text-xs font-semibold px-3 py-2 rounded-xl bg-[#27272A] hover:bg-[#EF4444]/20 hover:text-[#EF4444] text-[#A1A1AA] transition-colors">
+                        Keluar
+                    </button>
                 </div>
+
+                <!-- Navbar Logout Confirmation Modal -->
+                <x-modal id="navbar-logout-modal" title="Konfirmasi Keluar" subtitle="Sesi Anda akan diakhiri" maxWidth="sm">
+                    <div class="text-center py-2 space-y-3">
+                        <div class="w-12 h-12 rounded-full bg-[#EF4444]/15 border border-[#EF4444]/30 text-[#EF4444] flex items-center justify-center mx-auto">
+                            <x-icon name="logout" class="w-6 h-6" />
+                        </div>
+                        <h4 class="text-base font-bold text-white">Keluar dari Akun?</h4>
+                        <p class="text-xs text-[#A1A1AA] leading-relaxed">
+                            Apakah Anda yakin ingin keluar dari akun Socstreet Anda?
+                        </p>
+                    </div>
+
+                    <x-slot:footer>
+                        <x-button variant="secondary" size="md" type="button" onclick="toggleModal('navbar-logout-modal')">
+                            Batal
+                        </x-button>
+                        <form action="{{ route('logout') }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#EF4444] hover:bg-[#DC2626] text-white shadow-lg shadow-[#EF4444]/25 transition-all">
+                                <x-icon name="logout" class="w-3.5 h-3.5" />
+                                <span>Ya, Keluar Akun</span>
+                            </button>
+                        </form>
+                    </x-slot:footer>
+                </x-modal>
             @endguest
         </div>
     </div>
