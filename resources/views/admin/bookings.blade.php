@@ -22,12 +22,11 @@
                            placeholder="Cari ID Booking / User..." 
                            class="bg-transparent text-sm text-white placeholder-[#71717A] focus:outline-none w-full md:w-56 lg:w-64">
                 </div>
-                <button type="button" 
-                        onclick="showAdminToast('Ekspor Data', 'Fitur ekspor CSV/Excel berhasil disiapkan.')"
-                        class="flex items-center gap-1.5 bg-[#18181B] hover:bg-[#27272A] text-[#E4E4E7] border border-[#27272A] px-3.5 py-2 rounded-lg text-xs font-semibold transition-all shrink-0">
+                <a href="{{ route('admin.bookings.export') }}" 
+                   class="flex items-center gap-1.5 bg-[#18181B] hover:bg-[#27272A] text-[#E4E4E7] border border-[#27272A] px-3.5 py-2 rounded-lg text-xs font-semibold transition-all shrink-0">
                     <span class="material-symbols-outlined text-[16px]">file_download</span>
-                    <span>Ekspor</span>
-                </button>
+                    <span>Ekspor CSV</span>
+                </a>
             </div>
         </div>
 
@@ -37,7 +36,7 @@
             <div class="bg-[#18181B] border border-[#27272A] rounded-xl p-4 flex items-center justify-between shadow-sm">
                 <div class="flex flex-col">
                     <span class="text-[11px] font-semibold uppercase tracking-wider text-[#A1A1AA]">Perlu Konfirmasi</span>
-                    <span class="text-2xl font-extrabold text-[#FBBF24] mt-1" id="statPendingCount">{{ $bookingStats['pending'] ?? 2 }}</span>
+                    <span class="text-2xl font-extrabold text-[#FBBF24] mt-1" id="statPendingCount">{{ $bookingStats['pending'] ?? 0 }}</span>
                     <span class="text-xs text-[#71717A] mt-0.5">Membutuhkan tindakan cepat</span>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-[#2E230D] border border-[#D97706]/30 flex items-center justify-center text-[#FBBF24]">
@@ -49,7 +48,7 @@
             <div class="bg-[#18181B] border border-[#27272A] rounded-xl p-4 flex items-center justify-between shadow-sm">
                 <div class="flex flex-col">
                     <span class="text-[11px] font-semibold uppercase tracking-wider text-[#A1A1AA]">Terkonfirmasi</span>
-                    <span class="text-2xl font-extrabold text-[#4ADE80] mt-1">{{ $bookingStats['confirmed'] ?? 24 }}</span>
+                    <span class="text-2xl font-extrabold text-[#4ADE80] mt-1" id="statConfirmedCount">{{ $bookingStats['confirmed'] ?? 0 }}</span>
                     <span class="text-xs text-[#71717A] mt-0.5">Siap matchday</span>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-[#14291C] border border-[#16A34A]/30 flex items-center justify-center text-[#4ADE80]">
@@ -61,8 +60,8 @@
             <div class="bg-[#18181B] border border-[#27272A] rounded-xl p-4 flex items-center justify-between shadow-sm">
                 <div class="flex flex-col">
                     <span class="text-[11px] font-semibold uppercase tracking-wider text-[#A1A1AA]">Total Booking Hari Ini</span>
-                    <span class="text-2xl font-extrabold text-white mt-1">{{ $bookingStats['today_total'] ?? 28 }}</span>
-                    <span class="text-xs text-[#71717A] mt-0.5">8 slot terisi malam ini</span>
+                    <span class="text-2xl font-extrabold text-white mt-1" id="statTodayCount">{{ $bookingStats['today_total'] ?? 0 }}</span>
+                    <span class="text-xs text-[#71717A] mt-0.5">Sesi jadwal bermain hari ini</span>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-[#1F1F23] border border-[#3F3F46] flex items-center justify-center text-[#E4E4E7]">
                     <span class="material-symbols-outlined text-[20px]">sports_soccer</span>
@@ -73,9 +72,9 @@
             <div class="bg-[#18181B] border border-[#27272A] rounded-xl p-4 flex items-center justify-between shadow-sm">
                 <div class="flex flex-col">
                     <span class="text-[11px] font-semibold uppercase tracking-wider text-[#A1A1AA]">Total Penerimaan</span>
-                    <span class="text-2xl font-extrabold text-white mt-1">{{ $bookingStats['total_received'] ?? 'Rp 3.825k' }}</span>
+                    <span class="text-2xl font-extrabold text-white mt-1" id="statTotalReceived">{{ $bookingStats['total_received'] ?? 'Rp 0' }}</span>
                     <span class="text-xs text-[#22C55E] mt-0.5 flex items-center gap-0.5">
-                        <span class="material-symbols-outlined text-[14px]">trending_up</span> +14.2% minggu ini
+                        <span class="material-symbols-outlined text-[14px]">payments</span> Akumulasi pembayaran
                     </span>
                 </div>
                 <div class="w-10 h-10 rounded-lg bg-[#1F1F23] border border-[#3F3F46] flex items-center justify-center text-[#E4E4E7]">
@@ -136,6 +135,7 @@
                     <tbody class="divide-y divide-[#27272A] text-xs font-medium" id="bookingsTableBody">
                         @forelse($bookings ?? [] as $b)
                             <tr class="booking-row hover:bg-[#202022] transition-colors"
+                                id="booking-row-{{ $b['booking_id'] }}"
                                 data-id="{{ $b['booking_id'] }}"
                                 data-username="{{ strtolower($b['username']) }}"
                                 data-status="{{ $b['status'] }}"
@@ -321,41 +321,95 @@
             searchInput.addEventListener('input', applyFilters);
         }
 
-        function handleBookingAction(bookingId, action) {
+        async function handleBookingAction(bookingId, action) {
             const targetRow = Array.from(rows).find(r => r.getAttribute('data-id') === bookingId);
             if (!targetRow) return;
 
             const statusCell = targetRow.querySelector('.status-cell');
             const actionCell = targetRow.querySelector('.action-cell');
+            const originalActionHtml = actionCell.innerHTML;
 
-            if (action === 'confirm') {
-                targetRow.setAttribute('data-status', 'confirmed');
-                statusCell.innerHTML = `
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0D2818] border border-[#16A34A]/40 text-[#4ADE80] text-[11px] font-semibold">
-                        <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
-                        Confirmed
-                    </span>
-                `;
-                actionCell.innerHTML = `
-                    <div class="inline-flex items-center gap-1.5 text-xs font-medium text-[#A1A1AA] py-1.5">
-                        <span class="material-symbols-outlined text-[#22C55E] text-[16px]">check_circle</span>
-                        <span>Terkonfirmasi</span>
-                    </div>
-                `;
-                showAdminToast('Booking Disetujui', `Booking ${bookingId} telah dikonfirmasi dan slot dikunci.`, true);
-            } else {
-                targetRow.setAttribute('data-status', 'cancelled');
-                statusCell.innerHTML = `
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2D1214] border border-[#EF4444]/40 text-[#F87171] text-[11px] font-semibold">
-                        <span class="w-1.5 h-1.5 rounded-full bg-[#EF4444]"></span>
-                        Cancelled
-                    </span>
-                `;
-                actionCell.innerHTML = `<span class="text-[#52525B] font-mono text-sm">&mdash;</span>`;
-                showAdminToast('Booking Ditolak', `Reservasi ${bookingId} dibatalkan dan slot otomatis dibebaskan.`, false);
+            // Show loading spinner
+            actionCell.innerHTML = `
+                <span class="inline-flex items-center gap-1.5 text-xs text-[#A1A1AA]">
+                    <span class="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                    <span>Memproses...</span>
+                </span>
+            `;
+
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch(`/admin/bookings/${bookingId}/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token || ''
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal memproses aksi booking.');
+                }
+
+                const wasPending = targetRow.getAttribute('data-status') === 'pending';
+
+                if (action === 'confirm') {
+                    targetRow.setAttribute('data-status', 'confirmed');
+                    statusCell.innerHTML = `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0D2818] border border-[#16A34A]/40 text-[#4ADE80] text-[11px] font-semibold">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
+                            Confirmed
+                        </span>
+                    `;
+                    actionCell.innerHTML = `
+                        <div class="inline-flex items-center gap-1.5 text-xs font-medium text-[#A1A1AA] py-1.5">
+                            <span class="material-symbols-outlined text-[#22C55E] text-[16px]">check_circle</span>
+                            <span>Terkonfirmasi</span>
+                        </div>
+                    `;
+                    showAdminToast('Booking Disetujui', data.message || `Booking ${bookingId} telah dikonfirmasi dan slot dikunci.`, true);
+
+                    // Update stats counters
+                    if (wasPending) {
+                        const pendingEl = document.getElementById('statPendingCount');
+                        if (pendingEl) {
+                            const cur = parseInt(pendingEl.innerText) || 0;
+                            if (cur > 0) pendingEl.innerText = cur - 1;
+                        }
+                        const confirmedEl = document.getElementById('statConfirmedCount');
+                        if (confirmedEl) {
+                            const cur = parseInt(confirmedEl.innerText) || 0;
+                            confirmedEl.innerText = cur + 1;
+                        }
+                    }
+                } else {
+                    targetRow.setAttribute('data-status', 'cancelled');
+                    statusCell.innerHTML = `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2D1214] border border-[#EF4444]/40 text-[#F87171] text-[11px] font-semibold">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#EF4444]"></span>
+                            Cancelled
+                        </span>
+                    `;
+                    actionCell.innerHTML = `<span class="text-[#52525B] font-mono text-sm">&mdash;</span>`;
+                    showAdminToast('Booking Ditolak', data.message || `Reservasi ${bookingId} dibatalkan dan slot otomatis dibebaskan.`, false);
+
+                    if (wasPending) {
+                        const pendingEl = document.getElementById('statPendingCount');
+                        if (pendingEl) {
+                            const cur = parseInt(pendingEl.innerText) || 0;
+                            if (cur > 0) pendingEl.innerText = cur - 1;
+                        }
+                    }
+                }
+
+                applyFilters();
+            } catch (err) {
+                actionCell.innerHTML = originalActionHtml;
+                showAdminToast('Gagal', err.message || 'Terjadi kesalahan sistem.', false);
             }
-
-            applyFilters();
         }
     </script>
     @endpush
