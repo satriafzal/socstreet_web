@@ -13,6 +13,26 @@
         </div>
     </div>
 
+    @if($errors->any())
+        <div class="mb-6 p-4 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center gap-3">
+            <x-icon name="info" class="w-5 h-5 text-red-400 shrink-0" />
+            <div>
+                @foreach($errors->all() as $error)
+                    <p class="font-medium">{{ $error }}</p>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
+    <!-- Hidden Submission Form -->
+    <form id="booking-submit-form" method="POST" action="{{ route('booking.store') }}" class="hidden">
+        @csrf
+        <input type="hidden" name="book_date" value="{{ $bookDate }}">
+        <input type="hidden" name="time_slot" value="{{ $selectedSlot }}">
+        <input type="hidden" name="payment_type" id="hidden_payment_type" value="DP">
+        <input type="hidden" name="payment_method" id="hidden_payment_method" value="QRIS">
+    </form>
+
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <!-- Main Form Column (Left / 8 cols) -->
         <div class="lg:col-span-8 space-y-6">
@@ -265,10 +285,10 @@
             <x-button variant="secondary" size="md" type="button" onclick="toggleModal('payment-modal')">
                 Tutup
             </x-button>
-            <x-button variant="primary" size="md" href="{{ route('booking.my') }}" class="shadow-lg shadow-[#16A34A]/25">
+            <button type="submit" form="booking-submit-form" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-[#16A34A] hover:bg-[#15803D] text-white shadow-lg shadow-[#16A34A]/25 transition-all">
                 <x-icon name="check" class="w-4 h-4" />
                 <span>Saya Sudah Membayar</span>
-            </x-button>
+            </button>
         </x-slot:footer>
     </x-modal>
 
@@ -280,6 +300,9 @@
 
         function updatePaymentType(type) {
             currentType = type;
+            const hiddenType = document.getElementById('hidden_payment_type');
+            if (hiddenType) hiddenType.value = type;
+
             const options = document.querySelectorAll('.payment-type-option');
             options.forEach(opt => {
                 const input = opt.querySelector('input');
@@ -317,6 +340,9 @@
 
         function selectPaymentMethod(radio, name) {
             currentMethodName = name;
+            const hiddenMethod = document.getElementById('hidden_payment_method');
+            if (hiddenMethod) hiddenMethod.value = radio.value;
+
             document.querySelectorAll('.payment-method-card').forEach(card => {
                 card.classList.remove('border-[#16A34A]', 'bg-[#16A34A]/10', 'ring-1', 'ring-[#16A34A]');
                 card.classList.add('border-[#27272A]', 'bg-[#1E1E1E]');
