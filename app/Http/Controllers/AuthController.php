@@ -32,7 +32,7 @@ class AuthController extends Controller
      * Handle Web Login.
      * Authenticates by email & password, then transparently routes based on role.
      */
-    public function handleLogin(Request $request): RedirectResponse
+    public function handleLogin(Request $request): RedirectResponse|JsonResponse
     {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
@@ -51,6 +51,19 @@ class AuthController extends Controller
                 ->withErrors(['email' => 'Email atau kata sandi tidak cocok.']);
         }
 
+        if (!$user->is_active) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Akun Anda dinonaktifkan oleh administrator karena pelanggaran atau kecurangan. Silakan hubungi admin.',
+                ], 403);
+            }
+
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'Akun Anda dinonaktifkan oleh administrator karena pelanggaran atau kecurangan. Silakan hubungi admin.']);
+        }
+
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
@@ -63,10 +76,12 @@ class AuthController extends Controller
 
         // Role-based internal routing (Admin -> Dashboard Admin, User -> Dashboard Jadwal)
         if ($user->isAdmin()) {
-            return redirect()->intended(route('admin.dashboard'));
+            return redirect()->intended(route('admin.dashboard'))
+                ->with('success', "Selamat datang kembali, {$user->username}!");
         }
 
-        return redirect()->intended(route('booking.schedule'));
+        return redirect()->intended(route('booking.schedule'))
+            ->with('success', "Selamat datang kembali, {$user->username}!");
     }
 
     /**
@@ -102,7 +117,7 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         return redirect()->route('booking.schedule')
-            ->with('success', 'Pendaftaran berhasil! Selamat datang di Socstreet.');
+            ->with('success', "Selamat datang, {$user->username}!");
     }
 
     /**
@@ -134,6 +149,13 @@ class AuthController extends Controller
                 'status' => 'error',
                 'message' => 'Email atau kata sandi tidak cocok.',
             ], 401);
+        }
+
+        if (!$user->is_active) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akun Anda dinonaktifkan oleh administrator karena pelanggaran atau kecurangan. Silakan hubungi admin.',
+            ], 403);
         }
 
         Auth::login($user, $request->boolean('remember'));
