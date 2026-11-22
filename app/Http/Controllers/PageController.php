@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FieldSetting;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -12,14 +13,20 @@ class PageController extends Controller
      */
     public function home(): View
     {
+        $basePrice = (int) FieldSetting::get('base_price', 300000);
+        $primePrice = (int) FieldSetting::get('prime_price', 350000);
+        $arenaName = FieldSetting::get('arena_name', 'Socstreet Main Arena');
+
         // Showcase data for the single field: Socstreet Main Arena
         $arena = [
-            'name' => 'Socstreet Main Arena',
+            'name' => $arenaName,
             'tagline' => 'Standar Lapangan Minisoccer Kompetisi Resmi',
             'dimensions' => '42 × 25 Meter (Standar WMF)',
             'grass_type' => 'Monofilament 50mm + Eco Infill Rubber',
             'lighting' => 'LED High-Output 500 Lux Anti-Glare',
-            'price_per_hour' => 250000,
+            'base_price' => $basePrice,
+            'prime_price' => $primePrice,
+            'price_per_hour' => (int) ($basePrice / 2),
             'is_available_today' => true,
             'features' => [
                 'Rumput Sintetis Monofilament Premium',
