@@ -109,12 +109,14 @@ class ProfileController extends Controller
         }
 
         $user->password = Hash::make($validated['new_password']);
+        $user->must_change_password = false;
         $user->save();
 
         if ($request->expectsJson()) {
             return response()->json([
                 'status' => 'success',
                 'message' => 'Kata sandi berhasil diperbarui.',
+                'must_change_password' => false,
             ]);
         }
 
