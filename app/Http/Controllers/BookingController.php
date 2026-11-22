@@ -2,60 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreBookingRequest;
+use App\Models\Booking;
+use App\Models\FieldSetting;
+use App\Services\BookingService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class BookingController extends Controller
 {
-    /**
-     * Display the Schedule Grid for the single field: Socstreet Main Arena.
-     */
-    public function schedule(Request $request): View
-    {
-        $selectedDate = $request->query('date', Carbon::today()->format('Y-m-d'));
-
-        // Generate 7 upcoming days for the quick date picker
-        $availableDates = [];
-        for ($i = 0; $i < 7; $i++) {
-            $date = Carbon::today()->addDays($i);
-            $availableDates[] = [
-                'full_date' => $date->format('Y-m-d'),
-                'day_name' => $i === 0 ? 'Hari Ini' : ($i === 1 ? 'Besok' : $date->locale('id')->isoFormat('dddd')),
-                'date_short' => $date->isoFormat('D MMM'),
-                'is_selected' => $date->format('Y-m-d') === $selectedDate,
-            ];
-        }
-
-        // Available time slots (Strict 2-hour sessions: 08:00 to 22:00)
-        // Minimum booking is 2 hours (1 session). Adding hours must be in increments of 2 hours.
-        $allSlots = [
-            ['time' => '08:00 - 10:00', 'duration' => 2, 'price' => 300000, 'category' => 'Pagi', 'is_booked' => false],
-            ['time' => '10:00 - 12:00', 'duration' => 2, 'price' => 300000, 'category' => 'Siang', 'is_booked' => false],
-            ['time' => '12:00 - 14:00', 'duration' => 2, 'price' => 300000, 'category' => 'Siang', 'is_booked' => false],
-            ['time' => '14:00 - 16:00', 'duration' => 2, 'price' => 300000, 'category' => 'Sore', 'is_booked' => false],
-            ['time' => '16:00 - 18:00', 'duration' => 2, 'price' => 300000, 'category' => 'Sore', 'is_booked' => true],
-            ['time' => '18:00 - 20:00', 'duration' => 2, 'price' => 350000, 'category' => 'Malam (Prime)', 'is_booked' => false],
-            ['time' => '20:00 - 22:00', 'duration' => 2, 'price' => 350000, 'category' => 'Malam (Prime)', 'is_booked' => true],
-        ];
-
-        return view('pages.booking.schedule', compact('selectedDate', 'availableDates', 'allSlots'));
-    }
+    public function __construct(
+        protected BookingService $bookingService
+    ) {}
 
     /**
-     * Display the Checkout & Payment page.
+     * Standard list of payment methods supported by Socstreet (PRD 4.4).
      */
-    public function checkout(Request $request): View
+    protected function getPaymentMethods(): array
     {
-        $bookDate = $request->query('date', Carbon::today()->format('Y-m-d'));
-        $selectedSlot = $request->query('slot', '18:00 - 20:00');
-        $duration = (int) $request->query('duration', 2);
-        if ($duration < 2 || $duration % 2 !== 0) {
-            $duration = 2;
-        }
-        $basePrice = (int) $request->query('price', 350000);
-
-        $paymentMethods = [
+        return [
             [
                 'id' => 'QRIS',
                 'name' => 'QRIS',
@@ -99,8 +67,56 @@ class BookingController extends Controller
                 'badge' => 'Instan',
             ],
         ];
+    }
+
+    /**
+     * Display the Schedule Grid for the single field: Socstreet Main Arena.
+     */
+    public function schedule(Request $request): View
+    {
+        $selectedDate = $request->query('date', Carbon::today()->format('Y-m-d'));
+        $availableDates = $this->bookingService->getAvailableDates($selectedDate);
+        $allSlots = $this->bookingService->getSlotsForDate($selectedDate);
+
+        return view('pages.booking.schedule', compact('selectedDate', 'availableDates', 'allSlots'));
+    }
+
+    /**
+     * Display the Checkout & Payment page.
+     */
+    public function checkout(Request $request): View
+    {
+        $bookDate = $request->query('date', Carbon::today()->format('Y-m-d'));
+        $selectedSlot = $request->query('slot', '18:00 - 20:00');
+        $duration = (int) $request->query('duration', 2);
+        if ($duration < 2 || $duration % 2 !== 0) {
+            $duration = 2;
+        }
+
+        $basePrice = (int) $request->query('price', 0);
+        if ($basePrice <= 0) {
+            $defaultBase = (int) FieldSetting::get('base_price', 300000);
+            $defaultPrime = (int) FieldSetting::get('prime_price', 350000);
+            $startTime = trim(explode('-', $selectedSlot)[0] ?? '18:00');
+            $sessionPrice = ($startTime >= '18:00') ? $defaultPrime : $defaultBase;
+            $basePrice = ($duration / 2) * $sessionPrice;
+        }
+
+        $paymentMethods = $this->getPaymentMethods();
 
         return view('pages.booking.checkout', compact('bookDate', 'selectedSlot', 'duration', 'basePrice', 'paymentMethods'));
+    }
+
+    /**
+     * Handle Web form booking submission.
+     */
+    public function store(StoreBookingRequest $request): RedirectResponse
+    {
+        $booking = $this->bookingService->createBooking($request->user(), $request->validated());
+
+        return redirect()
+            ->route('booking.my')
+            ->with('success', "Booking lapangan berhasil dibuat dengan kode {$booking->booking_id_string}!");
     }
 
     /**
@@ -109,72 +125,123 @@ class BookingController extends Controller
     public function myBookings(Request $request): View
     {
         $statusFilter = $request->query('status', 'all');
-
-        $bookings = [
-            [
-                'id' => 1,
-                'booking_id_string' => 'INV-20261021-001',
-                'book_date' => Carbon::today()->format('d M Y'),
-                'start_time' => '18:00',
-                'end_time' => '20:00',
-                'duration' => 2,
-                'payment_type' => 'DP (50%)',
-                'payment_method' => 'QRIS',
-                'total_price' => 350000,
-                'amount_paid' => 175000,
-                'status' => 'confirmed', // pending_payment, confirmed, cancelled
-                'status_label' => 'Dikonfirmasi',
-            ],
-            [
-                'id' => 2,
-                'booking_id_string' => 'INV-20261022-004',
-                'book_date' => Carbon::today()->addDays(1)->format('d M Y'),
-                'start_time' => '20:00',
-                'end_time' => '22:00',
-                'duration' => 2,
-                'payment_type' => 'Lunas (100%)',
-                'payment_method' => 'BCA Virtual Account',
-                'total_price' => 350000,
-                'amount_paid' => 350000,
-                'status' => 'pending_payment',
-                'status_label' => 'Menunggu Pembayaran',
-            ],
-            [
-                'id' => 3,
-                'booking_id_string' => 'INV-20261018-009',
-                'book_date' => Carbon::today()->subDays(3)->format('d M Y'),
-                'start_time' => '14:00',
-                'end_time' => '18:00',
-                'duration' => 4,
-                'payment_type' => 'Lunas (100%)',
-                'payment_method' => 'GoPay',
-                'total_price' => 600000,
-                'amount_paid' => 600000,
-                'status' => 'confirmed',
-                'status_label' => 'Selesai',
-            ],
-            [
-                'id' => 4,
-                'booking_id_string' => 'INV-20261012-015',
-                'book_date' => Carbon::today()->subDays(9)->format('d M Y'),
-                'start_time' => '08:00',
-                'end_time' => '10:00',
-                'duration' => 2,
-                'payment_type' => 'DP (50%)',
-                'payment_method' => 'Mandiri',
-                'total_price' => 300000,
-                'amount_paid' => 0,
-                'status' => 'cancelled',
-                'status_label' => 'Dibatalkan',
-            ],
-        ];
-
-        // Filter bookings if requested
-        if ($statusFilter !== 'all') {
-            $bookings = array_values(array_filter($bookings, fn($b) => $b['status'] === $statusFilter));
-        }
+        $bookings = $this->bookingService->getUserBookings($request->user(), $statusFilter);
 
         return view('pages.booking.my-bookings', compact('bookings', 'statusFilter'));
     }
-}
 
+    /*
+    |--------------------------------------------------------------------------
+    | API ENDPOINTS (Customer Flow)
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * API: Get slot availability for a specified date (PRD 8.1).
+     * Endpoint: GET /api/schedule?date=YYYY-MM-DD
+     */
+    public function apiSchedule(Request $request): JsonResponse
+    {
+        $date = $request->query('date', Carbon::today()->format('Y-m-d'));
+        $slots = $this->bookingService->getSlotsForDate($date);
+
+        return response()->json([
+            'status' => 'success',
+            'arena' => FieldSetting::get('arena_name', 'Socstreet Main Arena'),
+            'date' => $date,
+            'slots' => $slots,
+        ]);
+    }
+
+    /**
+     * API: Create a booking and its payment record (PRD 4.4 & 6).
+     * Endpoint: POST /api/bookings
+     */
+    public function apiStore(StoreBookingRequest $request): JsonResponse
+    {
+        $booking = $this->bookingService->createBooking($request->user(), $request->validated());
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Booking berhasil dibuat.',
+            'data' => [
+                'booking_id' => $booking->id,
+                'booking_id_string' => $booking->booking_id_string,
+                'book_date' => $booking->book_date->format('Y-m-d'),
+                'time_slot' => "{$booking->start_time} - {$booking->end_time}",
+                'duration' => $booking->duration,
+                'total_price' => (float) $booking->total_price,
+                'status' => $booking->status,
+                'payment' => $booking->latestPayment ? [
+                    'id' => $booking->latestPayment->id,
+                    'payment_type' => $booking->latestPayment->payment_type,
+                    'payment_method' => $booking->latestPayment->payment_method,
+                    'amount' => (float) $booking->latestPayment->amount,
+                    'status' => $booking->latestPayment->status,
+                ] : null,
+            ],
+        ], 201);
+    }
+
+    /**
+     * API: Get list of logged-in customer's bookings (PRD 4.5).
+     * Endpoint: GET /api/my-bookings
+     */
+    public function apiMyBookings(Request $request): JsonResponse
+    {
+        $statusFilter = $request->query('status', 'all');
+        $bookings = $this->bookingService->getUserBookings($request->user(), $statusFilter);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $bookings,
+        ]);
+    }
+
+    /**
+     * API: Get specific booking details.
+     * Endpoint: GET /api/bookings/{id}
+     */
+    public function apiShow(int $id, Request $request): JsonResponse
+    {
+        $booking = Booking::with(['payments', 'user'])->find($id);
+
+        if (! $booking) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Data booking tidak ditemukan.',
+            ], 404);
+        }
+
+        // Authorization: only the owner or an admin can view
+        if ($booking->user_id !== $request->user()->id && ! $request->user()->isAdmin()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Anda tidak memiliki hak akses untuk booking ini.',
+            ], 403);
+        }
+
+        $latestPayment = $booking->latestPayment;
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'id' => $booking->id,
+                'booking_id_string' => $booking->booking_id_string,
+                'username' => $booking->user->username,
+                'book_date' => $booking->book_date->format('Y-m-d'),
+                'time_slot' => "{$booking->start_time} - {$booking->end_time}",
+                'duration' => $booking->duration,
+                'total_price' => (float) $booking->total_price,
+                'status' => $booking->status,
+                'payment' => $latestPayment ? [
+                    'payment_type' => $latestPayment->payment_type,
+                    'payment_method' => $latestPayment->payment_method,
+                    'amount' => (float) $latestPayment->amount,
+                    'status' => $latestPayment->status,
+                ] : null,
+                'created_at' => $booking->created_at->toIso8601String(),
+            ],
+        ]);
+    }
+}
