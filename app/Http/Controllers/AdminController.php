@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Services\AdminService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -324,14 +326,21 @@ class AdminController extends Controller
     public function createUser(Request $request): JsonResponse|RedirectResponse
     {
         $request->validate([
-            'username' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-zA-Z0-9_]+$/'],
+            'username' => ['required', 'string', 'min:3', 'max:50'],
             'role' => ['nullable', 'string'],
         ], [
             'username.required' => 'Username wajib diisi.',
             'username.min' => 'Username minimal 3 karakter.',
             'username.max' => 'Username maksimal 50 karakter.',
-            'username.regex' => 'Username hanya boleh berisi huruf, angka, dan underscore (_).',
         ]);
+
+        if (strtolower((string) $request->input('role')) === 'admin') {
+            $msg = 'Penambahan akun administrator tidak diizinkan. Sistem hanya memiliki 1 administrator.';
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['status' => 'error', 'message' => $msg], 422);
+            }
+            return back()->withErrors(['role' => $msg]);
+        }
 
         try {
             $user = $this->adminService->createUser($request->all());
@@ -357,6 +366,71 @@ class AdminController extends Controller
             }
 
             return back()->with('success', "Pengguna {$user->username} berhasil dibuat.");
+        } catch (\InvalidArgumentException $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+            return back()->withErrors(['username' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update customer user details (PRD 7.B.4).
+     * Endpoint: PUT /admin/users/{id}
+     */
+    public function updateUser(int $id, Request $request): JsonResponse|RedirectResponse
+    {
+        $targetUser = User::findOrFail($id);
+
+        $rules = [
+            'is_active' => ['nullable'],
+        ];
+
+        // Only validate username if it is present and actually different from existing username
+        $hasNewUsername = $request->filled('username') && trim((string)$request->input('username')) !== $targetUser->username;
+
+        if ($hasNewUsername) {
+            $rules['username'] = [
+                'required',
+                'string',
+                'min:3',
+                'max:50',
+                Rule::unique('users', 'username')->ignore($id),
+            ];
+        }
+
+        $request->validate($rules, [
+            'username.required' => 'Username wajib diisi.',
+            'username.min' => 'Username minimal 3 karakter.',
+            'username.max' => 'Username maksimal 50 karakter.',
+            'username.unique' => 'Username ini sudah digunakan akun lain.',
+        ]);
+
+        try {
+            $data = $request->all();
+            if (!$hasNewUsername) {
+                unset($data['username']);
+            }
+
+            $user = $this->adminService->updateUser($id, $data);
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => "Data pengguna {$user->username} berhasil diperbarui.",
+                    'data' => [
+                        'id' => $user->id,
+                        'user_id_string' => 'USR-' . str_pad($user->id, 3, '0', STR_PAD_LEFT),
+                        'username' => $user->username,
+                        'is_active' => (bool) $user->is_active,
+                    ],
+                ]);
+            }
+
+            return back()->with('success', "Data pengguna {$user->username} berhasil diperbarui.");
         } catch (\InvalidArgumentException $e) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
@@ -422,17 +496,124 @@ class AdminController extends Controller
     }
 
     /**
-     * Display Admin Profile & Security Settings page.
+     * Display Admin Profile & Security Settings page (PRD 7.B.5).
      */
-    public function settings(): View
+    public function settings(Request $request): View
     {
-        $admin = [
-            'id' => 'ADM-001',
-            'username' => 'admin_soc',
-            'role' => 'Super Administrator',
-            'created_at' => '1 Oktober 2026',
-        ];
+        $admin = $this->adminService->getAdminProfile($request->user()->id);
 
         return view('admin.settings', compact('admin'));
+    }
+
+    /**
+     * API: Get Admin Profile & Settings (PRD 7.B.5).
+     * Endpoint: GET /api/admin/settings
+     */
+    public function apiSettings(Request $request): JsonResponse
+    {
+        $admin = $this->adminService->getAdminProfile($request->user()->id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $admin,
+        ]);
+    }
+
+    /**
+     * Update Admin Profile (Username and Avatar, PRD 7.B.5).
+     * Endpoint: PUT/POST /admin/settings/profile, PUT/POST /api/admin/settings/profile
+     */
+    public function updateProfile(Request $request): JsonResponse|RedirectResponse
+    {
+        $adminId = $request->user()->id;
+
+        $request->validate([
+            'username' => [
+                'required',
+                'string',
+                'min:3',
+                'max:50',
+                'regex:/^[a-zA-Z0-9_]+$/',
+                Rule::unique('users', 'username')->ignore($adminId),
+            ],
+            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+        ], [
+            'username.required' => 'Username wajib diisi.',
+            'username.min' => 'Username minimal 3 karakter.',
+            'username.max' => 'Username maksimal 50 karakter.',
+            'username.regex' => 'Username hanya boleh berisi huruf, angka, dan underscore (_).',
+            'username.unique' => 'Username ini sudah digunakan akun lain.',
+            'avatar.image' => 'File avatar harus berupa gambar.',
+            'avatar.mimes' => 'Format avatar harus JPEG, PNG, JPG, atau WEBP.',
+            'avatar.max' => 'Ukuran avatar maksimal 2MB.',
+        ]);
+
+        try {
+            $avatarFile = $request->file('avatar');
+            $updatedAdmin = $this->adminService->updateAdminProfile($adminId, $request->only('username'), $avatarFile);
+            $profile = $this->adminService->getAdminProfile($updatedAdmin->id);
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Profil administrator berhasil diperbarui.',
+                    'data' => $profile,
+                ]);
+            }
+
+            return back()->with('success', 'Profil administrator berhasil diperbarui.');
+        } catch (\InvalidArgumentException $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+
+            return back()->withErrors(['username' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update Admin Password (PRD 7.B.5).
+     * Endpoint: PUT /admin/settings/password, PUT /api/admin/settings/password
+     */
+    public function updatePassword(Request $request): JsonResponse|RedirectResponse
+    {
+        $request->validate([
+            'current_password' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+        ], [
+            'current_password.required' => 'Password saat ini wajib diisi.',
+            'new_password.required' => 'Password baru wajib diisi.',
+            'new_password.min' => 'Password baru minimal harus 8 karakter.',
+            'new_password.confirmed' => 'Konfirmasi password baru tidak cocok.',
+        ]);
+
+        try {
+            $this->adminService->updateAdminPassword(
+                $request->user()->id,
+                $request->input('current_password'),
+                $request->input('new_password')
+            );
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Password administrator berhasil diperbarui.',
+                ]);
+            }
+
+            return back()->with('success', 'Password administrator berhasil diperbarui.');
+        } catch (\InvalidArgumentException $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+
+            return back()->withErrors(['current_password' => $e->getMessage()]);
+        }
     }
 }
