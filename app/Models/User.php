@@ -4,13 +4,15 @@ namespace App\Models;
 
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -20,10 +22,12 @@ class User extends Authenticatable
     protected $fillable = [
         'username',
         'email',
+        'avatar',
         'password',
         'role',
         'role_id',
         'must_change_password',
+        'is_active',
     ];
 
     /**
@@ -47,6 +51,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role_id' => 'integer',
             'must_change_password' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -64,6 +69,17 @@ class User extends Authenticatable
     public function isUser(): bool
     {
         return $this->role === 'user' || $this->role_id === 2;
+    }
+
+    /**
+     * Get avatar URL or null.
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if ($this->avatar && Storage::disk('public')->exists($this->avatar)) {
+            return asset('storage/' . $this->avatar);
+        }
+        return null;
     }
 
     /**
