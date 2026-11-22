@@ -106,14 +106,12 @@
             <span>Lihat Lapangan Publik</span>
         </a>
 
-        <!-- Admin Logout -->
-        <form action="{{ route('logout') }}" method="POST" class="w-full">
-            @csrf
-            <button type="submit" 
-               class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-semibold text-[#ef4444] hover:bg-[#271010] hover:text-[#f87171] transition-colors">
-                <span class="material-symbols-outlined text-[19px]">logout</span>
-                <span>Logout</span>
-            </button>
-        </form>
+        <!-- Admin Logout Trigger Button -->
+        <button type="button" 
+            onclick="toggleModal('admin-logout-modal')"
+            class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-xs font-semibold text-[#ef4444] hover:bg-[#271010] hover:text-[#f87171] transition-colors">
+            <span class="material-symbols-outlined text-[19px]">logout</span>
+            <span>Logout</span>
+        </button>
     </div>
 </aside>
