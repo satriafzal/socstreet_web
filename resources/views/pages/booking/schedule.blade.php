@@ -20,6 +20,14 @@
                 <span class="w-2 h-2 rounded-full bg-[#3F3F46]"></span>
                 Terisi / Booked
             </span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#181818] border border-[#27272A] text-[#52525B]">
+                <span class="w-2 h-2 rounded-full bg-[#27272A]"></span>
+                Selesai / Lewat
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#181818] border border-red-900/40 text-red-400">
+                <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                Maintenance / Diblokir
+            </span>
             <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16A34A]/20 border border-[#16A34A] text-white">
                 <span class="w-2 h-2 rounded-full bg-[#22C55E]"></span>
                 Pilihan Anda
@@ -82,22 +90,28 @@
             <!-- Slots Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5" id="slots-container">
                 @foreach($allSlots as $index => $slot)
+                    @php
+                        $isPast = $slot['is_past'] ?? false;
+                        $isDisabled = $slot['is_booked'] || $slot['is_blocked'] || $isPast;
+                    @endphp
                     <button
                         type="button"
                         data-slot="{{ $slot['time'] }}"
                         data-duration="{{ $slot['duration'] ?? 2 }}"
                         data-price="{{ $slot['price'] }}"
                         data-booked="{{ $slot['is_booked'] ? 'true' : 'false' }}"
-                        @if($slot['is_booked']) disabled @endif
+                        data-blocked="{{ $slot['is_blocked'] ? 'true' : 'false' }}"
+                        data-past="{{ $isPast ? 'true' : 'false' }}"
+                        @if($isDisabled) disabled @endif
                         onclick="toggleSlot(this)"
-                        class="slot-card relative text-left p-4 rounded-xl border transition-all flex items-center justify-between {{ $slot['is_booked'] ? 'bg-[#141414] border-[#1F1F1F] opacity-45 cursor-not-allowed select-none' : 'bg-[#1E1E1E] border-[#27272A] hover:border-[#16A34A]/60 hover:bg-[#242424] cursor-pointer' }}"
+                        class="slot-card relative text-left p-4 rounded-xl border transition-all flex items-center justify-between {{ $slot['is_blocked'] ? 'bg-[#181111] border-red-900/50 opacity-60 cursor-not-allowed select-none' : ($slot['is_booked'] ? 'bg-[#141414] border-[#1F1F1F] opacity-45 cursor-not-allowed select-none' : ($isPast ? 'bg-[#141414] border-[#1F1F1F] opacity-35 cursor-not-allowed select-none' : 'bg-[#1E1E1E] border-[#27272A] hover:border-[#16A34A]/60 hover:bg-[#242424] cursor-pointer')) }}"
                     >
                         <div>
                             <div class="flex items-center gap-2">
-                                <span class="text-sm font-bold {{ $slot['is_booked'] ? 'line-through text-[#71717A]' : 'text-white' }}">
+                                <span class="text-sm font-bold {{ $isDisabled ? 'line-through text-[#71717A]' : 'text-white' }}">
                                     {{ $slot['time'] }}
                                 </span>
-                                <span class="text-[10px] px-1.5 py-0.5 rounded font-mono {{ $slot['is_booked'] ? 'bg-[#27272A] text-[#71717A]' : 'bg-[#27272A] text-[#A1A1AA]' }}">
+                                <span class="text-[10px] px-1.5 py-0.5 rounded font-mono {{ $isDisabled ? 'bg-[#27272A] text-[#71717A]' : 'bg-[#27272A] text-[#A1A1AA]' }}">
                                     {{ $slot['category'] }}
                                 </span>
                             </div>
@@ -105,15 +119,24 @@
                                 <span class="text-[11px] px-2 py-0.5 rounded bg-[#181818] border border-[#27272A] text-[#A1A1AA] font-semibold">
                                     2 Jam (120 Menit)
                                 </span>
-                                <p class="text-xs font-semibold {{ $slot['is_booked'] ? 'text-[#71717A]' : 'text-[#22C55E]' }}">
+                                <p class="text-xs font-semibold {{ $isDisabled ? 'text-[#71717A]' : 'text-[#22C55E]' }}">
                                     Rp {{ number_format($slot['price'], 0, ',', '.') }}
                                 </p>
                             </div>
+                            @if($slot['is_blocked'] && !empty($slot['block_reason']))
+                                <p class="text-[10px] text-red-400 mt-1 italic">
+                                    {{ $slot['block_reason'] }}
+                                </p>
+                            @endif
                         </div>
 
                         <div>
-                            @if($slot['is_booked'])
+                            @if($slot['is_blocked'])
+                                <x-badge variant="danger" size="xs">Maintenance</x-badge>
+                            @elseif($slot['is_booked'])
                                 <x-badge variant="neutral" size="xs">Terisi</x-badge>
+                            @elseif($isPast)
+                                <x-badge variant="neutral" size="xs">Selesai</x-badge>
                             @else
                                 <div class="slot-checkbox w-6 h-6 rounded-lg border border-[#27272A] bg-[#181818] flex items-center justify-center text-transparent transition-all">
                                     <x-icon name="check" class="w-3.5 h-3.5" />
@@ -205,7 +228,9 @@
         let selectedSlots = []; // Array of { slot: string, price: number, duration: number, element: HTMLElement }
 
         function toggleSlot(button) {
-            if (button.getAttribute('data-booked') === 'true') return;
+            if (button.getAttribute('data-booked') === 'true' || 
+                button.getAttribute('data-blocked') === 'true' || 
+                button.getAttribute('data-past') === 'true') return;
 
             const slotTime = button.getAttribute('data-slot');
             const slotPrice = parseInt(button.getAttribute('data-price'), 10);
@@ -301,9 +326,11 @@
 
         // Auto-select first available 2-hour slot on load
         document.addEventListener('DOMContentLoaded', () => {
-            const firstAvailable = document.querySelector('.slot-card[data-booked="false"]');
+            const firstAvailable = document.querySelector('.slot-card[data-booked="false"][data-blocked="false"][data-past="false"]');
             if (firstAvailable) {
                 toggleSlot(firstAvailable);
+            } else {
+                renderSummary();
             }
         });
     </script>
