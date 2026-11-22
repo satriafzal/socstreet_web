@@ -23,6 +23,7 @@ class User extends Authenticatable
         'password',
         'role',
         'role_id',
+        'must_change_password',
     ];
 
     /**
@@ -45,6 +46,7 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
             'role_id' => 'integer',
+            'must_change_password' => 'boolean',
         ];
     }
 
