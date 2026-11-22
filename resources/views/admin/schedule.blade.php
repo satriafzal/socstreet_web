@@ -27,7 +27,7 @@
                 <div class="h-7 w-px bg-[#27272A]"></div>
                 <div class="flex flex-col">
                     <span class="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider">Tersedia Hari Ini</span>
-                    <span class="text-xs text-[#4ADE80] font-bold font-mono">5 / 7 Slot</span>
+                    <span class="text-xs text-[#4ADE80] font-bold font-mono" id="todayAvailableCounter">{{ $availableToday ?? 0 }} / 7 Slot</span>
                 </div>
             </div>
         </div>
@@ -56,7 +56,7 @@
                 </div>
 
                 <!-- Form Inputs Stack -->
-                <form class="flex flex-col gap-4" onsubmit="event.preventDefault(); showAdminToast('Tarif Disimpan', 'Konfigurasi tarif sesi bermain berhasil diperbarui.');">
+                <form id="pricingForm" class="flex flex-col gap-4" onsubmit="handleUpdatePricing(event)">
                     <!-- Price Input -->
                     <div class="flex flex-col gap-1.5">
                         <label class="text-xs font-semibold text-[#A1A1AA] flex items-center justify-between" for="sessionPrice">
@@ -140,7 +140,7 @@
                     </div>
 
                     <!-- CTA Save Button -->
-                    <button class="w-full mt-1 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.99] text-white text-xs font-bold py-3 px-4 rounded-lg shadow-lg shadow-[#16A34A]/20 flex items-center justify-center gap-2 transition-all cursor-pointer" type="submit">
+                    <button id="savePriceBtn" class="w-full mt-1 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.99] text-white text-xs font-bold py-3 px-4 rounded-lg shadow-lg shadow-[#16A34A]/20 flex items-center justify-center gap-2 transition-all cursor-pointer" type="submit">
                         <span class="material-symbols-outlined text-[18px]">save</span>
                         <span>Simpan Perubahan Harga</span>
                     </button>
@@ -165,7 +165,7 @@
                 </div>
 
                 <!-- Action Form / Controls Grid -->
-                <form id="blockSlotForm" class="bg-[#121212] border border-[#27272A] rounded-lg p-4" onsubmit="event.preventDefault(); handleAddBlockSlot();">
+                <form id="blockSlotForm" class="bg-[#121212] border border-[#27272A] rounded-lg p-4" onsubmit="handleAddBlockSlot(event)">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <!-- Date Input -->
                         <div class="flex flex-col gap-1.5">
@@ -175,7 +175,8 @@
                                 <input class="w-full bg-[#18181B] border border-[#27272A] rounded-lg pl-10 pr-3 py-2 text-white text-xs font-semibold focus:outline-none focus:border-[#EF4444] focus:ring-1 focus:ring-[#EF4444] transition-all" 
                                        id="blockDate" 
                                        type="date" 
-                                       value="{{ date('Y-m-d', strtotime('+3 days')) }}"
+                                       min="{{ date('Y-m-d') }}"
+                                       value="{{ date('Y-m-d', strtotime('+1 day')) }}"
                                        required/>
                             </div>
                         </div>
@@ -212,7 +213,8 @@
                                            value="Perawatan Rumput Sintetis"
                                            required/>
                                 </div>
-                                <button class="bg-[#EF4444] hover:bg-[#DC2626] active:scale-[0.99] text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 cursor-pointer" 
+                                <button id="blockSlotSubmitBtn"
+                                        class="bg-[#EF4444] hover:bg-[#DC2626] active:scale-[0.99] text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0 cursor-pointer" 
                                         type="submit">
                                     <span class="material-symbols-outlined text-[17px]">block</span>
                                     <span>Blokir Slot</span>
@@ -269,7 +271,7 @@
                                             </td>
                                             <td class="py-3.5 px-4 text-right">
                                                 <button type="button" 
-                                                        onclick="removeBlockedSlot('row-slot-{{ $slot['id'] }}', '{{ $slot['time_slot'] }}')"
+                                                        onclick="handleRemoveBlockedSlot({{ $slot['id'] }}, '{{ $slot['time_slot'] }}')"
                                                         class="inline-flex items-center gap-1 border border-[#EF4444]/40 text-[#EF4444] hover:bg-[#271010] hover:border-[#EF4444] active:scale-95 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer">
                                                     <span class="material-symbols-outlined text-[14px]">lock_open</span>
                                                     <span>Buka Blokir</span>
@@ -302,74 +304,184 @@
             }
         }
 
-        function removeBlockedSlot(rowId, timeSlot) {
-            const row = document.getElementById(rowId);
-            if (row) {
-                row.remove();
-                updateBlockCounter();
-                showAdminToast('Blokir Dibuka', `Slot ${timeSlot} telah dibuka kembali untuk pemesanan umum.`, true);
+        async function handleUpdatePricing(event) {
+            event.preventDefault();
+            const priceInput = document.getElementById('sessionPrice');
+            const submitBtn = document.getElementById('savePriceBtn');
+            const originalBtnHtml = submitBtn.innerHTML;
 
-                const remaining = document.querySelectorAll('#blockedTableBody tr:not(#emptyBlockedRow)');
-                if (remaining.length === 0) {
-                    const tbody = document.getElementById('blockedTableBody');
-                    tbody.innerHTML = `<tr id="emptyBlockedRow"><td colspan="4" class="py-6 text-center text-[#71717A]">Tidak ada jadwal yang sedang diblokir.</td></tr>`;
+            const rawPrice = priceInput.value.replace(/[^0-9]/g, '');
+            if (!rawPrice || parseInt(rawPrice) < 50000) {
+                showAdminToast('Input Tidak Valid', 'Masukkan nominal tarif yang valid (minimal Rp 50.000).', false);
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <span class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                <span>Menyimpan...</span>
+            `;
+
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch("{{ route('admin.schedule.pricing') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token || ''
+                    },
+                    body: JSON.stringify({ price: rawPrice })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal menyimpan perubahan tarif.');
                 }
+
+                priceInput.value = data.data.base_price_formatted;
+                showAdminToast('Tarif Disimpan', data.message || 'Konfigurasi tarif sesi bermain berhasil diperbarui.', true);
+            } catch (err) {
+                showAdminToast('Gagal Menyimpan', err.message || 'Terjadi kesalahan sistem.', false);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
             }
         }
 
-        function handleAddBlockSlot() {
+        async function handleAddBlockSlot(event) {
+            event.preventDefault();
             const dateInput = document.getElementById('blockDate').value;
             const slotSelect = document.getElementById('blockSlot').value;
             const reasonInput = document.getElementById('blockReason').value.trim();
+            const submitBtn = document.getElementById('blockSlotSubmitBtn');
+            const originalBtnHtml = submitBtn.innerHTML;
 
             if (!dateInput || !reasonInput) {
                 showAdminToast('Form Belum Lengkap', 'Silakan pilih tanggal dan isi alasan pemblokiran.', false);
                 return;
             }
 
-            const emptyRow = document.getElementById('emptyBlockedRow');
-            if (emptyRow) {
-                emptyRow.remove();
-            }
-
-            const tbody = document.getElementById('blockedTableBody');
-            const newId = 'row-slot-custom-' + Date.now();
-
-            const newRow = document.createElement('tr');
-            newRow.className = 'hover:bg-[#18181B]/50 transition-colors';
-            newRow.id = newId;
-            newRow.innerHTML = `
-                <td class="py-3.5 px-4">
-                    <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px] text-[#71717A]">calendar_month</span>
-                        <span class="font-semibold text-white">${dateInput}</span>
-                    </div>
-                </td>
-                <td class="py-3.5 px-4">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1F1F23] text-[#E4E4E7] font-mono text-[11px]">
-                        <span class="material-symbols-outlined text-[14px] text-[#EF4444]">lock</span>
-                        ${slotSelect}
-                    </span>
-                </td>
-                <td class="py-3.5 px-4">
-                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#3D1A0E] text-[#FCA5A5] border border-[#5C2415] text-[11px]">
-                        <span class="w-1.5 h-1.5 rounded-full bg-[#F87171]"></span>
-                        ${reasonInput}
-                    </span>
-                </td>
-                <td class="py-3.5 px-4 text-right">
-                    <button type="button" 
-                            onclick="removeBlockedSlot('${newId}', '${slotSelect}')"
-                            class="inline-flex items-center gap-1 border border-[#EF4444]/40 text-[#EF4444] hover:bg-[#271010] hover:border-[#EF4444] active:scale-95 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer">
-                        <span class="material-symbols-outlined text-[14px]">lock_open</span>
-                        <span>Buka Blokir</span>
-                    </button>
-                </td>
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `
+                <span class="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                <span>Memblokir...</span>
             `;
 
-            tbody.prepend(newRow);
-            updateBlockCounter();
-            showAdminToast('Slot Diblokir', `Sesi ${slotSelect} pada tanggal ${dateInput} telah diblokir.`, true);
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch("{{ route('admin.schedule.block') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token || ''
+                    },
+                    body: JSON.stringify({
+                        date: dateInput,
+                        time_slot: slotSelect,
+                        reason: reasonInput
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal memblokir sesi jadwal.');
+                }
+
+                const emptyRow = document.getElementById('emptyBlockedRow');
+                if (emptyRow) {
+                    emptyRow.remove();
+                }
+
+                const tbody = document.getElementById('blockedTableBody');
+                const newRow = document.createElement('tr');
+                newRow.className = 'hover:bg-[#18181B]/50 transition-colors';
+                newRow.id = `row-slot-${data.data.id}`;
+                newRow.innerHTML = `
+                    <td class="py-3.5 px-4">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[16px] text-[#71717A]">calendar_month</span>
+                            <span class="font-semibold text-white">${data.data.date}</span>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1F1F23] text-[#E4E4E7] font-mono text-[11px]">
+                            <span class="material-symbols-outlined text-[14px] text-[#EF4444]">lock</span>
+                            ${data.data.time_slot}
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#3D1A0E] text-[#FCA5A5] border border-[#5C2415] text-[11px]">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#F87171]"></span>
+                            ${data.data.reason}
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-4 text-right">
+                        <button type="button" 
+                                onclick="handleRemoveBlockedSlot(${data.data.id}, '${data.data.time_slot}')"
+                                class="inline-flex items-center gap-1 border border-[#EF4444]/40 text-[#EF4444] hover:bg-[#271010] hover:border-[#EF4444] active:scale-95 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer">
+                            <span class="material-symbols-outlined text-[14px]">lock_open</span>
+                            <span>Buka Blokir</span>
+                        </button>
+                    </td>
+                `;
+
+                tbody.prepend(newRow);
+                updateBlockCounter();
+                showAdminToast('Slot Diblokir', data.message || `Sesi ${slotSelect} pada tanggal ${dateInput} telah diblokir.`, true);
+
+                // Reset reason field
+                document.getElementById('blockReason').value = '';
+            } catch (err) {
+                showAdminToast('Gagal Memblokir', err.message || 'Terjadi kesalahan sistem.', false);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
+        }
+
+        async function handleRemoveBlockedSlot(id, timeSlot) {
+            if (!confirm(`Buka blokir untuk sesi ${timeSlot}? Sesi ini akan langsung tersedia kembali untuk dipesan umum.`)) {
+                return;
+            }
+
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                const response = await fetch(`/admin/schedule/block/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': token || ''
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Gagal membuka blokir jadwal.');
+                }
+
+                const row = document.getElementById(`row-slot-${id}`);
+                if (row) {
+                    row.remove();
+                }
+
+                updateBlockCounter();
+
+                const remaining = document.querySelectorAll('#blockedTableBody tr:not(#emptyBlockedRow)');
+                if (remaining.length === 0) {
+                    const tbody = document.getElementById('blockedTableBody');
+                    tbody.innerHTML = `<tr id="emptyBlockedRow"><td colspan="4" class="py-6 text-center text-[#71717A]">Tidak ada jadwal yang sedang diblokir.</td></tr>`;
+                }
+
+                showAdminToast('Blokir Dibuka', data.message || `Slot ${timeSlot} telah dibuka kembali untuk pemesanan umum.`, true);
+            } catch (err) {
+                showAdminToast('Gagal', err.message || 'Terjadi kesalahan sistem.', false);
+            }
         }
     </script>
     @endpush
