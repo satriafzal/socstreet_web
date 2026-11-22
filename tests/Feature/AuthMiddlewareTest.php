@@ -99,4 +99,30 @@ class AuthMiddlewareTest extends TestCase
         // Navbar Booking Saya link goes to /login for guest
         $response->assertSee('href="' . route('login') . '"', false);
     }
+
+    public function test_user_dashboard_renders_logout_confirmation_modal()
+    {
+        $response = $this->actingAs($this->user)->get('/schedule');
+        $response->assertStatus(200);
+        $response->assertSee('dashboard-logout-modal');
+        $response->assertSee('Konfirmasi Keluar');
+        $response->assertSee('Keluar dari Akun Socstreet?');
+        $response->assertSee('Ya, Keluar Akun');
+    }
+
+    public function test_admin_dashboard_renders_logout_confirmation_modal()
+    {
+        $response = $this->actingAs($this->admin)->get('/admin/dashboard');
+        $response->assertStatus(200);
+        $response->assertSee('admin-logout-modal');
+        $response->assertSee('Konfirmasi Logout Admin');
+        $response->assertSee('Ya, Logout Sekarang');
+    }
+
+    public function test_user_can_logout_via_post_request()
+    {
+        $response = $this->actingAs($this->user)->post('/logout');
+        $response->assertRedirect(route('login'));
+        $this->assertGuest();
+    }
 }
