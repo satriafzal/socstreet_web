@@ -39,6 +39,14 @@ class AdminBookingsTest extends TestCase
             'role_id' => 2,
             'must_change_password' => false,
         ]);
+
+        Carbon::setTestNow('2026-11-23 06:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     public function test_guest_cannot_access_admin_bookings()
