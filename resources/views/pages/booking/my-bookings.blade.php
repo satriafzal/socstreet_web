@@ -16,10 +16,42 @@
         </x-button>
     </div>
 
+    <!-- Flash Message Notification -->
     @if(session('success'))
-        <div class="mb-6 p-4 rounded-xl bg-emerald-950/40 border border-emerald-600/40 text-emerald-300 text-xs flex items-center gap-3">
-            <x-icon name="check" class="w-5 h-5 text-emerald-400 shrink-0" />
-            <p class="font-medium">{{ session('success') }}</p>
+        <div class="mb-6 p-4 rounded-xl bg-emerald-950/40 border border-emerald-600/40 text-emerald-300 text-xs sm:text-sm flex items-start gap-3 shadow-lg">
+            <x-icon name="check" class="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <p class="font-medium leading-relaxed">{{ session('success') }}</p>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="mb-6 p-4 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-xs sm:text-sm flex items-start gap-3 shadow-lg">
+            <x-icon name="info" class="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+            <p class="font-medium leading-relaxed">{{ session('error') }}</p>
+        </div>
+    @endif
+
+    <!-- Warning Banner: Unpaid Down Payment (DP 50%) Notice -->
+    @if(!empty($hasUnpaidDp))
+        <div class="mb-6 p-4 sm:p-5 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm flex flex-col sm:flex-row items-start justify-between gap-4 shadow-xl">
+            <div class="flex items-start gap-3.5">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 text-amber-400 mt-0.5">
+                    <x-icon name="alert-triangle" class="w-5 h-5" />
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h4 class="font-bold text-amber-300 text-sm sm:text-base">Pemberitahuan Pelunasan Down Payment (DP 50%)</h4>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/30 text-amber-300 border border-amber-500/40 uppercase">Penting</span>
+                    </div>
+                    <p class="text-xs text-amber-200/80 mt-1 leading-relaxed">
+                        Anda memiliki sesi booking aktif yang baru dibayar uang muka (DP 50%). Anda dapat menyelesaikan sisa pembayaran secara <strong>online melalui tombol "Lunasi Online"</strong> pada tabel, atau <strong>bayar langsung di kasir sebelum kickoff pertandingan</strong>.
+                    </p>
+                    <p class="text-[11px] text-amber-300/90 mt-2 flex items-center gap-1.5">
+                        <x-icon name="clock" class="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span><strong>Batas Toleransi:</strong> Pelunasan wajib diselesaikan maksimal <strong>1 jam setelah kickoff</strong>. Jika lewat batas, booking otomatis dibatalkan sistem dan uang DP dinyatakan <strong class="text-red-400 uppercase font-bold">HANGUS</strong>.</span>
+                    </p>
+                </div>
+            </div>
         </div>
     @endif
 
@@ -51,7 +83,7 @@
         </a>
     </div>
 
-    <!-- Clean Data Table Container (PRD Rule 4.5: Clean data table, NO action buttons on rows) -->
+    <!-- Clean Data Table Container -->
     <div class="rounded-2xl bg-[#181818] border border-[#27272A] overflow-hidden shadow-2xl">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
@@ -63,6 +95,7 @@
                         <th class="py-4 px-6">Tipe & Metode</th>
                         <th class="py-4 px-6 text-right">Total Tagihan</th>
                         <th class="py-4 px-6 text-center">Status</th>
+                        <th class="py-4 px-6 text-right">Aksi / Pelunasan</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#27272A] text-xs">
@@ -98,38 +131,86 @@
                             </td>
 
                             <!-- Total Tagihan -->
-                            <td class="py-4 px-6 text-right font-bold text-white font-mono">
-                                Rp {{ number_format($booking['total_price'], 0, ',', '.') }}
-                                @if(str_contains($booking['payment_type'], 'DP'))
-                                    <span class="block text-[10px] text-amber-400 font-normal">
-                                        (Dibayar: Rp {{ number_format($booking['amount_paid'], 0, ',', '.') }})
+                            <td class="py-4 px-6 text-right font-mono">
+                                <p class="font-bold text-white text-sm">Rp {{ number_format($booking['total_price'], 0, ',', '.') }}</p>
+                                @if(($booking['remaining_amount'] ?? 0) > 0)
+                                    <p class="text-[11px] text-amber-400 font-medium mt-0.5">
+                                        Sisa: Rp {{ number_format($booking['remaining_amount'], 0, ',', '.') }}
+                                    </p>
+                                    <span class="text-[10px] text-[#71717A] block mt-0.5">
+                                        (DP: Rp {{ number_format($booking['amount_paid'], 0, ',', '.') }})
                                     </span>
+                                @else
+                                    <p class="text-[11px] text-emerald-400 font-medium mt-0.5">Lunas (Sisa Rp 0)</p>
                                 @endif
                             </td>
 
-                            <!-- Status Badge (No row action buttons per PRD 4.5) -->
+                            <!-- Status Badge -->
                             <td class="py-4 px-6 text-center">
                                 @if($booking['status'] === 'confirmed')
-                                    <x-badge variant="success" size="sm">
-                                        <x-icon name="check" class="w-3 h-3" />
-                                        <span>{{ $booking['status_label'] }}</span>
-                                    </x-badge>
+                                    @if($booking['is_fully_paid'])
+                                        <x-badge variant="success" size="sm">
+                                            <x-icon name="check" class="w-3 h-3" />
+                                            <span>Lunas 100%</span>
+                                        </x-badge>
+                                    @else
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-950/70 border border-amber-500/40 text-amber-300 text-[11px] font-semibold">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                                            DP 50% Aktif
+                                        </span>
+                                    @endif
                                 @elseif($booking['status'] === 'pending_payment')
                                     <x-badge variant="warning" size="sm">
                                         <x-icon name="clock" class="w-3 h-3" />
-                                        <span>{{ $booking['status_label'] }}</span>
+                                        <span>Menunggu Pembayaran</span>
                                     </x-badge>
                                 @else
-                                    <x-badge variant="danger" size="sm">
-                                        <x-icon name="x" class="w-3 h-3" />
-                                        <span>{{ $booking['status_label'] }}</span>
-                                    </x-badge>
+                                    @if(!empty($booking['is_dp_hangus']))
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-950/80 border border-red-500/60 text-red-300 text-[11px] font-semibold" title="{{ $booking['cancellation_reason'] }}">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                                            Dibatalkan (DP Hangus)
+                                        </span>
+                                    @else
+                                        <x-badge variant="danger" size="sm">
+                                            <x-icon name="x" class="w-3 h-3" />
+                                            <span>Dibatalkan</span>
+                                        </x-badge>
+                                    @endif
+                                @endif
+                            </td>
+
+                            <!-- Aksi Pelunasan -->
+                            <td class="py-4 px-6 text-right">
+                                @if($booking['status'] === 'confirmed' && ($booking['remaining_amount'] ?? 0) > 0)
+                                    <div class="flex flex-col items-end gap-1">
+                                        <a href="{{ route('booking.settle.page', $booking['booking_id_string']) }}"
+                                           class="inline-flex items-center gap-1.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-95 text-white font-semibold text-xs px-3 py-1.5 rounded-lg shadow-sm shadow-[#16A34A]/25 transition-all cursor-pointer"
+                                           title="Lanjut ke halaman konfirmasi pelunasan online">
+                                            <x-icon name="credit-card" class="w-3.5 h-3.5" />
+                                            <span>Lunasi Online</span>
+                                        </a>
+                                        <span class="text-[10px] text-[#A1A1AA] flex items-center gap-1">
+                                            <span>atau lunasi di kasir</span>
+                                        </span>
+                                    </div>
+                                @elseif($booking['status'] === 'confirmed' && $booking['is_fully_paid'])
+                                    <div class="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                                        <x-icon name="check" class="w-3.5 h-3.5" />
+                                        <span>Tagihan Lunas</span>
+                                    </div>
+                                @elseif(!empty($booking['is_dp_hangus']))
+                                    <div class="text-right">
+                                        <span class="text-[11px] text-red-400 font-medium block">DP Hangus</span>
+                                        <span class="text-[10px] text-[#71717A]">&gt; 1 jam setelah kickoff</span>
+                                    </div>
+                                @else
+                                    <span class="text-[#52525B] font-mono text-xs">&mdash;</span>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="py-12 text-center text-[#71717A]">
+                            <td colspan="7" class="py-12 text-center text-[#71717A]">
                                 <x-icon name="info" class="w-8 h-8 mx-auto text-[#3F3F46] mb-3" />
                                 <p class="text-sm font-semibold text-white">Tidak ada data booking</p>
                                 <p class="text-xs text-[#71717A] mt-1">Belum ada transaksi pemesanan dengan filter ini.</p>
