@@ -14,11 +14,21 @@ use Illuminate\Support\Facades\Storage;
 
 class AdminService
 {
+    protected BookingService $bookingService;
+
+    public function __construct(?BookingService $bookingService = null)
+    {
+        $this->bookingService = $bookingService ?? app(BookingService::class);
+    }
+
     /**
      * Get summary metrics for admin dashboard (PRD 7.B.1).
      */
     public function getDashboardMetrics(): array
     {
+        // Real-time check and expire overdue bookings (15-min pending or kickoff + 1h DP)
+        $this->bookingService->checkAndExpireOverdueBookings();
+
         $now = Carbon::now();
 
         // Total revenue this month from paid payments or confirmed bookings
@@ -56,6 +66,9 @@ class AdminService
      */
     public function getBookingStats(): array
     {
+        // Real-time check and expire overdue bookings
+        $this->bookingService->checkAndExpireOverdueBookings();
+
         $pending = Booking::where('status', 'pending_payment')->count();
         $confirmed = Booking::where('status', 'confirmed')->count();
         $todayTotal = Booking::whereDate('book_date', Carbon::today())->count();
@@ -79,6 +92,9 @@ class AdminService
      */
     public function getAllBookings(array $filters = []): array
     {
+        // Real-time check and expire overdue bookings
+        $this->bookingService->checkAndExpireOverdueBookings();
+
         $query = Booking::with(['user', 'latestPayment', 'payments'])->latest();
 
         if (!empty($filters['search'])) {
@@ -116,8 +132,13 @@ class AdminService
             $isDp = $payment ? ($payment->payment_type === 'DP') : false;
 
             $totalPrice = (float) $b->total_price;
-            $paidAmount = $payment ? (float) $payment->amount : ($isDp ? ($totalPrice / 2) : $totalPrice);
-            $remainingRaw = $isDp ? max(0, $totalPrice - $paidAmount) : 0;
+            $paidAmount = (float) $b->payments->where('status', 'paid')->sum('amount');
+            if ($paidAmount == 0 && $payment) {
+                $paidAmount = (float) $payment->amount;
+            }
+            $remainingRaw = max(0, $totalPrice - $paidAmount);
+            $isFullyPaid = ($remainingRaw <= 0) && ($b->status === 'confirmed');
+            $isDpHangus = ($b->status === 'cancelled') && str_contains(strtolower($b->cancellation_reason ?? ''), 'hangus');
 
             $statusNormalized = match ($b->status) {
                 'confirmed' => 'confirmed',
@@ -134,13 +155,18 @@ class AdminService
                 'time_slot' => $b->start_time . ' - ' . $b->end_time,
                 'start_time' => $b->start_time,
                 'end_time' => $b->end_time,
-                'payment_type_raw' => $isDp ? 'dp' : 'full',
-                'payment_type' => $isDp ? 'DP 50%' : 'Lunas 100%',
+                'payment_type_raw' => ($isFullyPaid || $remainingRaw <= 0) ? 'full' : 'dp',
+                'payment_type' => ($isFullyPaid || $remainingRaw <= 0) ? 'Lunas 100%' : 'DP 50%',
                 'payment_method' => $payment ? $payment->payment_method : 'QRIS',
                 'total_price' => 'Rp ' . number_format($totalPrice, 0, ',', '.'),
                 'total_price_raw' => $totalPrice,
+                'paid_amount' => 'Rp ' . number_format($paidAmount, 0, ',', '.'),
+                'paid_amount_raw' => $paidAmount,
                 'remaining_payment' => $remainingRaw > 0 ? 'Rp ' . number_format($remainingRaw, 0, ',', '.') : 'Rp 0',
                 'remaining_payment_raw' => $remainingRaw,
+                'is_fully_paid' => $isFullyPaid,
+                'is_dp_hangus' => $isDpHangus,
+                'cancellation_reason' => $b->cancellation_reason,
                 'status' => $statusNormalized,
                 'status_raw' => $b->status,
             ];
@@ -218,6 +244,37 @@ class AdminService
             ->update(['status' => 'failed']);
 
         return $booking->load(['user', 'payments']);
+    }
+
+    /**
+     * Settle remaining balance for a DP booking directly at cashier.
+     */
+    public function settleBookingAtCashier(int|string $identifier, string $paymentMethod = 'QRIS'): Booking
+    {
+        $booking = is_numeric($identifier)
+            ? Booking::with(['payments', 'user'])->findOrFail($identifier)
+            : Booking::with(['payments', 'user'])->where('booking_id_string', $identifier)->firstOrFail();
+
+        $totalPrice = (float) $booking->total_price;
+        $paidAmount = (float) $booking->payments->where('status', 'paid')->sum('amount');
+        $remaining = max(0, $totalPrice - $paidAmount);
+
+        if ($remaining > 0) {
+            Payment::create([
+                'booking_id' => $booking->id,
+                'payment_type' => 'FULL',
+                'payment_method' => in_array($paymentMethod, ['QRIS', 'BCA', 'Mandiri', 'BRI', 'DANA', 'GoPay']) ? $paymentMethod : 'QRIS',
+                'amount' => $remaining,
+                'status' => 'paid',
+            ]);
+        }
+
+        $booking->update([
+            'status' => 'confirmed',
+            'cancellation_reason' => null,
+        ]);
+
+        return $booking->fresh(['payments', 'user']);
     }
 
     /**
