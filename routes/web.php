@@ -42,6 +42,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/checkout', [BookingController::class, 'checkout'])->name('booking.checkout');
         Route::post('/bookings', [BookingController::class, 'store'])->name('booking.store');
         Route::get('/my-bookings', [BookingController::class, 'myBookings'])->name('booking.my');
+        Route::get('/bookings/{id}/settle', [BookingController::class, 'settlePage'])->name('booking.settle.page');
+        Route::post('/bookings/{id}/settle', [BookingController::class, 'settleOnline'])->name('booking.settle');
     });
 });
 
@@ -56,6 +58,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/bookings/export', [AdminController::class, 'exportBookings'])->name('bookings.export');
     Route::post('/bookings/{id}/confirm', [AdminController::class, 'confirmBooking'])->name('bookings.confirm');
     Route::post('/bookings/{id}/reject', [AdminController::class, 'rejectBooking'])->name('bookings.reject');
+    Route::post('/bookings/{id}/settle', [AdminController::class, 'settleBooking'])->name('bookings.settle');
     Route::get('/schedule', [AdminController::class, 'schedule'])->name('schedule');
     Route::post('/schedule/pricing', [AdminController::class, 'updatePricing'])->name('schedule.pricing');
     Route::post('/schedule/block', [AdminController::class, 'blockSlot'])->name('schedule.block');
