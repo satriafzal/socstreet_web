@@ -272,11 +272,86 @@ class BookingService
     }
 
     /**
+     * Automatically check and expire overdue bookings:
+     * 1. Unpaid pending_payment bookings past 15 mins or past match start.
+     * 2. Confirmed DP bookings where remaining balance is not settled within 1 hour after match start (DP Hangus).
+     */
+    public function checkAndExpireOverdueBookings(): void
+    {
+        $now = Carbon::now();
+
+        // 1. Pending payment overdue
+        $overduePending = Booking::where('status', 'pending_payment')->get();
+        foreach ($overduePending as $booking) {
+            $bookDateStr = $booking->book_date instanceof Carbon ? $booking->book_date->format('Y-m-d') : (string) $booking->book_date;
+            $matchStart = Carbon::parse($bookDateStr . ' ' . $booking->start_time);
+
+            if ($booking->created_at->addMinutes(15)->lt($now) || $now->gte($matchStart)) {
+                $booking->update([
+                    'status' => 'cancelled',
+                    'cancellation_reason' => 'Batas waktu pembayaran habis (15 menit)',
+                ]);
+                Payment::where('booking_id', $booking->id)
+                    ->where('status', 'pending')
+                    ->update(['status' => 'failed']);
+            }
+        }
+
+        // 2. Confirmed DP bookings overdue (Tolerance: Kickoff + 1 Hour)
+        $confirmedBookings = Booking::with('payments')->where('status', 'confirmed')->get();
+        foreach ($confirmedBookings as $booking) {
+            $paid = (float) $booking->payments->where('status', 'paid')->sum('amount');
+            $remaining = max(0, (float) $booking->total_price - $paid);
+
+            if ($remaining > 0) {
+                $bookDateStr = $booking->book_date instanceof Carbon ? $booking->book_date->format('Y-m-d') : (string) $booking->book_date;
+                $deadline = Carbon::parse($bookDateStr . ' ' . $booking->start_time)->addHour();
+
+                if ($now->gt($deadline)) {
+                    $booking->update([
+                        'status' => 'cancelled',
+                        'cancellation_reason' => 'DP Hangus (Melewati batas toleransi pelunasan 1 jam kickoff)',
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Settle remaining balance online.
+     */
+    public function settleBookingOnline(Booking $booking, string $paymentMethod): Booking
+    {
+        $paid = (float) $booking->payments()->where('status', 'paid')->sum('amount');
+        $remaining = max(0, (float) $booking->total_price - $paid);
+
+        if ($remaining > 0) {
+            Payment::create([
+                'booking_id' => $booking->id,
+                'payment_type' => 'FULL',
+                'payment_method' => $paymentMethod,
+                'amount' => $remaining,
+                'status' => 'paid',
+            ]);
+        }
+
+        $booking->update([
+            'status' => 'confirmed',
+            'cancellation_reason' => null,
+        ]);
+
+        return $booking->load(['payments', 'user']);
+    }
+
+    /**
      * Get formatted customer bookings query with status filter.
      */
     public function getUserBookings(User $user, ?string $statusFilter = 'all')
     {
-        $query = Booking::with('latestPayment')
+        // Run real-time expiration check
+        $this->checkAndExpireOverdueBookings();
+
+        $query = Booking::with(['latestPayment', 'payments'])
             ->where('user_id', $user->id)
             ->latest();
 
@@ -285,14 +360,21 @@ class BookingService
         }
 
         return $query->get()->map(function (Booking $booking) {
+            $totalPrice = (float) $booking->total_price;
+            $amountPaid = (float) $booking->payments->where('status', 'paid')->sum('amount');
+            if ($amountPaid === 0.0 && $booking->latestPayment) {
+                $amountPaid = (float) $booking->latestPayment->amount;
+            }
+            $remainingAmount = max(0, $totalPrice - $amountPaid);
+            $isFullyPaid = ($remainingAmount <= 0) && ($booking->status === 'confirmed');
+            $isDpHangus = $booking->status === 'cancelled' && str_contains(strtolower($booking->cancellation_reason ?? ''), 'hangus');
+
             $latestPayment = $booking->latestPayment;
-            $paymentTypeLabel = $latestPayment 
-                ? ($latestPayment->payment_type === 'DP' ? 'DP (50%)' : 'Lunas (100%)') 
-                : '-';
+            $paymentTypeLabel = $isFullyPaid ? 'Lunas 100%' : ($remainingAmount > 0 ? 'DP 50%' : 'Lunas 100%');
 
             $statusLabel = match ($booking->status) {
-                'confirmed' => 'Dikonfirmasi',
-                'cancelled' => 'Dibatalkan',
+                'confirmed' => $isFullyPaid ? 'Dikonfirmasi (Lunas)' : 'Dikonfirmasi (DP 50%)',
+                'cancelled' => $isDpHangus ? 'Dibatalkan (DP Hangus)' : 'Dibatalkan',
                 default => 'Menunggu Pembayaran',
             };
 
@@ -304,9 +386,13 @@ class BookingService
                 'end_time' => $booking->end_time,
                 'duration' => $booking->duration ?? 2,
                 'payment_type' => $paymentTypeLabel,
-                'payment_method' => $latestPayment ? $latestPayment->payment_method : '-',
-                'total_price' => (float) $booking->total_price,
-                'amount_paid' => $latestPayment ? (float) $latestPayment->amount : 0,
+                'payment_method' => $latestPayment ? $latestPayment->payment_method : 'QRIS',
+                'total_price' => $totalPrice,
+                'amount_paid' => $amountPaid,
+                'remaining_amount' => $remainingAmount,
+                'is_fully_paid' => $isFullyPaid,
+                'is_dp_hangus' => $isDpHangus,
+                'cancellation_reason' => $booking->cancellation_reason,
                 'status' => $booking->status,
                 'status_label' => $statusLabel,
             ];
