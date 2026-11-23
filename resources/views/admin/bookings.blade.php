@@ -186,8 +186,8 @@
                                 <td class="py-4 px-4 font-semibold text-white font-mono">{{ $b['total_price'] }}</td>
 
                                 <!-- Sisa Bayar -->
-                                <td class="py-4 px-4 font-mono">
-                                    @if($b['remaining_payment'] !== 'Rp 0')
+                                <td class="py-4 px-4 font-mono remaining-cell" id="remaining-cell-{{ $b['booking_id'] }}">
+                                    @if(($b['remaining_payment_raw'] ?? 0) > 0)
                                         <span class="text-[#FBBF24] font-semibold">{{ $b['remaining_payment'] }}</span>
                                     @else
                                         <span class="text-[#71717A]">&mdash; (Lunas)</span>
@@ -202,15 +202,29 @@
                                             Pending
                                         </span>
                                     @elseif($b['status'] === 'confirmed')
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0D2818] border border-[#16A34A]/40 text-[#4ADE80] text-[11px] font-semibold">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
-                                            Confirmed
-                                        </span>
+                                        @if(($b['remaining_payment_raw'] ?? 0) > 0)
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2E230D] border border-[#F59E0B]/40 text-[#FBBF24] text-[11px] font-semibold">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>
+                                                Confirmed (DP 50%)
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0D2818] border border-[#16A34A]/40 text-[#4ADE80] text-[11px] font-semibold">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
+                                                Confirmed (Lunas)
+                                            </span>
+                                        @endif
                                     @else
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2D1214] border border-[#EF4444]/40 text-[#F87171] text-[11px] font-semibold">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-[#EF4444]"></span>
-                                            Cancelled
-                                        </span>
+                                        @if(!empty($b['is_dp_hangus']))
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-950/80 border border-red-500/60 text-red-300 text-[11px] font-semibold" title="{{ $b['cancellation_reason'] }}">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                                                Cancelled (DP Hangus)
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2D1214] border border-[#EF4444]/40 text-[#F87171] text-[11px] font-semibold">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-[#EF4444]"></span>
+                                                Cancelled
+                                            </span>
+                                        @endif
                                     @endif
                                 </td>
 
@@ -230,10 +244,22 @@
                                             </button>
                                         </div>
                                     @elseif($b['status'] === 'confirmed')
-                                        <div class="inline-flex items-center gap-1.5 text-xs font-medium text-[#A1A1AA] py-1.5">
-                                            <span class="material-symbols-outlined text-[#22C55E] text-[16px]">check_circle</span>
-                                            <span>Terkonfirmasi</span>
-                                        </div>
+                                        @if(($b['remaining_payment_raw'] ?? 0) > 0)
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                <button type="button"
+                                                        onclick="handleBookingAction('{{ $b['booking_id'] }}', 'settle')"
+                                                        class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition-all cursor-pointer"
+                                                        title="Pelunasan sisa tagihan DP di kasir arena">
+                                                    <span class="material-symbols-outlined text-[15px]">point_of_sale</span>
+                                                    <span>Lunasi di Kasir</span>
+                                                </button>
+                                            </div>
+                                        @else
+                                            <div class="inline-flex items-center gap-1.5 text-xs font-medium text-[#4ADE80] py-1.5">
+                                                <span class="material-symbols-outlined text-[#22C55E] text-[16px]">check_circle</span>
+                                                <span>Lunas 100%</span>
+                                            </div>
+                                        @endif
                                     @else
                                         <span class="text-[#52525B] font-mono text-sm">&mdash;</span>
                                     @endif
@@ -356,18 +382,53 @@
 
                 const wasPending = targetRow.getAttribute('data-status') === 'pending';
 
-                if (action === 'confirm') {
-                    targetRow.setAttribute('data-status', 'confirmed');
+                if (action === 'settle') {
+                    targetRow.setAttribute('data-type', 'full');
+                    const remCell = targetRow.querySelector('.remaining-cell') || document.getElementById(`remaining-cell-${bookingId}`);
+                    if (remCell) {
+                        remCell.innerHTML = `<span class="text-[#71717A]">&mdash; (Lunas)</span>`;
+                    }
                     statusCell.innerHTML = `
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0D2818] border border-[#16A34A]/40 text-[#4ADE80] text-[11px] font-semibold">
                             <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
-                            Confirmed
+                            Confirmed (Lunas)
                         </span>
                     `;
                     actionCell.innerHTML = `
-                        <div class="inline-flex items-center gap-1.5 text-xs font-medium text-[#A1A1AA] py-1.5">
+                        <div class="inline-flex items-center gap-1.5 text-xs font-medium text-[#4ADE80] py-1.5">
                             <span class="material-symbols-outlined text-[#22C55E] text-[16px]">check_circle</span>
-                            <span>Terkonfirmasi</span>
+                            <span>Lunas 100%</span>
+                        </div>
+                    `;
+                    showAdminToast('Pelunasan Kasir Berhasil', data.message || `Sisa tagihan untuk booking ${bookingId} telah dilunasi di kasir arena.`, true);
+                } else if (action === 'confirm') {
+                    targetRow.setAttribute('data-status', 'confirmed');
+                    const isDp = targetRow.getAttribute('data-type') === 'dp';
+                    statusCell.innerHTML = isDp ? `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2E230D] border border-[#F59E0B]/40 text-[#FBBF24] text-[11px] font-semibold">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#F59E0B]"></span>
+                            Confirmed (DP 50%)
+                        </span>
+                    ` : `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0D2818] border border-[#16A34A]/40 text-[#4ADE80] text-[11px] font-semibold">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span>
+                            Confirmed (Lunas)
+                        </span>
+                    `;
+                    actionCell.innerHTML = isDp ? `
+                        <div class="flex items-center justify-end gap-1.5">
+                            <button type="button"
+                                    onclick="handleBookingAction('${bookingId}', 'settle')"
+                                    class="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-sm transition-all cursor-pointer"
+                                    title="Pelunasan sisa tagihan DP di kasir arena">
+                                <span class="material-symbols-outlined text-[15px]">point_of_sale</span>
+                                <span>Lunasi di Kasir</span>
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="inline-flex items-center gap-1.5 text-xs font-medium text-[#4ADE80] py-1.5">
+                            <span class="material-symbols-outlined text-[#22C55E] text-[16px]">check_circle</span>
+                            <span>Lunas 100%</span>
                         </div>
                     `;
                     showAdminToast('Booking Disetujui', data.message || `Booking ${bookingId} telah dikonfirmasi dan slot dikunci.`, true);
