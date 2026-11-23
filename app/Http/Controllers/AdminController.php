@@ -72,6 +72,29 @@ class AdminController extends Controller
     }
 
     /**
+     * Settle remaining DP booking at cashier.
+     */
+    public function settleBooking(string|int $id, Request $request): JsonResponse|RedirectResponse
+    {
+        $booking = $this->adminService->settleBookingAtCashier($id);
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Pelunasan sisa tagihan booking {$booking->booking_id_string} di kasir berhasil dicatat. Status: Lunas 100%.",
+                'data' => [
+                    'booking_id' => $booking->booking_id_string,
+                    'status' => $booking->status,
+                    'is_fully_paid' => true,
+                    'remaining_payment' => 'Rp 0',
+                ],
+            ]);
+        }
+
+        return back()->with('success', "Pelunasan sisa tagihan booking {$booking->booking_id_string} di kasir berhasil dicatat.");
+    }
+
+    /**
      * API: Get admin dashboard metrics & recent bookings.
      * Endpoint: GET /api/admin/dashboard
      */
