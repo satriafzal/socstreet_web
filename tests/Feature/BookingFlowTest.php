@@ -42,6 +42,14 @@ class BookingFlowTest extends TestCase
         FieldSetting::set('arena_name', 'Socstreet Main Arena');
         FieldSetting::set('base_price', '300000');
         FieldSetting::set('prime_price', '350000');
+
+        Carbon::setTestNow('2026-11-23 06:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     public function test_unauthenticated_user_cannot_access_booking_schedule_and_is_redirected_to_login()
