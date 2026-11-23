@@ -30,6 +30,7 @@ class BookingController extends Controller
                 'category' => 'Instant QR',
                 'desc' => 'BCA, Mandiri, GoPay, OVO, ShopeePay & semua bank',
                 'badge' => 'Otomatis',
+                'logo' => 'images/payments/qris.svg',
             ],
             [
                 'id' => 'BCA',
@@ -37,6 +38,7 @@ class BookingController extends Controller
                 'category' => 'Virtual Account',
                 'desc' => 'Verifikasi instan via m-BCA / KlikBCA',
                 'badge' => 'Otomatis',
+                'logo' => 'images/payments/bca.svg',
             ],
             [
                 'id' => 'Mandiri',
@@ -44,6 +46,7 @@ class BookingController extends Controller
                 'category' => 'Virtual Account',
                 'desc' => 'Bayar via Livin by Mandiri & ATM',
                 'badge' => 'Otomatis',
+                'logo' => 'images/payments/mandiri.svg',
             ],
             [
                 'id' => 'BRI',
@@ -51,6 +54,7 @@ class BookingController extends Controller
                 'category' => 'Virtual Account',
                 'desc' => 'Bayar via BRImo atau ATM BRI',
                 'badge' => 'Otomatis',
+                'logo' => 'images/payments/bri.svg',
             ],
             [
                 'id' => 'DANA',
@@ -58,6 +62,7 @@ class BookingController extends Controller
                 'category' => 'E-Wallet',
                 'desc' => 'Pembayaran langsung akun dompet DANA',
                 'badge' => 'Instan',
+                'logo' => 'images/payments/dana.svg',
             ],
             [
                 'id' => 'GoPay',
@@ -65,6 +70,7 @@ class BookingController extends Controller
                 'category' => 'E-Wallet',
                 'desc' => 'Konfirmasi pembayaran via aplikasi Gojek',
                 'badge' => 'Instan',
+                'logo' => 'images/payments/gopay.svg',
             ],
         ];
     }
@@ -112,22 +118,128 @@ class BookingController extends Controller
      */
     public function store(StoreBookingRequest $request): RedirectResponse
     {
-        $booking = $this->bookingService->createBooking($request->user(), $request->validated());
+        $validated = $request->validated();
+        $booking = $this->bookingService->createBooking($request->user(), $validated);
+        $isDp = strtoupper($validated['payment_type'] ?? '') === 'DP';
+
+        if ($isDp) {
+            $total = (float) $booking->total_price;
+            $dpPaid = $total / 2;
+            $remaining = $total - $dpPaid;
+            $msg = "Pembayaran DP 50% sebesar Rp " . number_format($dpPaid, 0, ',', '.') . " berhasil! Kode booking: {$booking->booking_id_string}. Sisa tagihan Rp " . number_format($remaining, 0, ',', '.') . " dapat dilunasi secara online di halaman 'Booking Saya' atau langsung di kasir sebelum kickoff (batas toleransi 1 jam setelah jam mulai).";
+        } else {
+            $msg = "Pembayaran Lunas 100% sebesar Rp " . number_format($booking->total_price, 0, ',', '.') . " berhasil dikonfirmasi! Kode booking: {$booking->booking_id_string}.";
+        }
 
         return redirect()
             ->route('booking.my')
-            ->with('success', "Booking lapangan berhasil dibuat dengan kode {$booking->booking_id_string}!");
+            ->with('success', $msg);
     }
 
     /**
-     * Display the My Bookings data table (PRD 4.5: No action buttons on rows).
+     * Display the My Bookings data table with settlement options.
      */
     public function myBookings(Request $request): View
     {
         $statusFilter = $request->query('status', 'all');
         $bookings = $this->bookingService->getUserBookings($request->user(), $statusFilter);
+        $paymentMethods = $this->getPaymentMethods();
 
-        return view('pages.booking.my-bookings', compact('bookings', 'statusFilter'));
+        // Check if user has active confirmed DP bookings with remaining balance
+        $hasUnpaidDp = $bookings->contains(function ($b) {
+            return $b['status'] === 'confirmed' && !($b['is_fully_paid'] ?? false) && ($b['remaining_amount'] ?? 0) > 0;
+        });
+
+        return view('pages.booking.my-bookings', compact('bookings', 'statusFilter', 'paymentMethods', 'hasUnpaidDp'));
+    }
+
+    /**
+     * Display the Settlement Checkout & Payment page for an active DP booking.
+     */
+    public function settlePage(Request $request, string|int $id): View|RedirectResponse
+    {
+        $this->bookingService->checkAndExpireOverdueBookings();
+
+        $booking = is_numeric($id)
+            ? Booking::with(['payments', 'user'])->where('id', $id)->where('user_id', $request->user()->id)->firstOrFail()
+            : Booking::with(['payments', 'user'])->where('booking_id_string', $id)->where('user_id', $request->user()->id)->firstOrFail();
+
+        if ($booking->status === 'cancelled') {
+            return redirect()
+                ->route('booking.my')
+                ->with('error', "Booking {$booking->booking_id_string} telah dibatalkan atau waktu toleransinya telah habis (DP Hangus).");
+        }
+
+        $remainingAmount = $booking->remainingAmount();
+        if ($remainingAmount <= 0) {
+            return redirect()
+                ->route('booking.my')
+                ->with('info', "Booking {$booking->booking_id_string} sudah berstatus LUNAS 100%.");
+        }
+
+        $totalPrice = (float) $booking->total_price;
+        $paidAmount = $booking->paidAmount();
+        $paymentMethods = $this->getPaymentMethods();
+
+        return view('pages.booking.settle-checkout', compact('booking', 'remainingAmount', 'paidAmount', 'totalPrice', 'paymentMethods'));
+    }
+
+    /**
+     * Settle remaining balance online via Web Payment Gateway simulation.
+     */
+    public function settleOnline(Request $request, int|string $id): JsonResponse|RedirectResponse
+    {
+        $request->validate([
+            'payment_method' => ['required', 'string', 'in:QRIS,BCA,Mandiri,BRI,DANA,GoPay'],
+        ]);
+
+        $booking = is_numeric($id)
+            ? Booking::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail()
+            : Booking::where('booking_id_string', $id)->where('user_id', $request->user()->id)->firstOrFail();
+
+        if ($booking->status === 'cancelled') {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Booking ini telah dibatalkan atau hangus.',
+                ], 422);
+            }
+            return redirect()->route('booking.my')->with('error', "Booking {$booking->booking_id_string} telah dibatalkan atau hangus.");
+        }
+
+        $remaining = $booking->remainingAmount();
+        if ($remaining <= 0) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 'info',
+                    'message' => "Booking {$booking->booking_id_string} sudah lunas.",
+                    'redirect_url' => route('booking.my'),
+                ]);
+            }
+            return redirect()->route('booking.my')->with('info', "Booking {$booking->booking_id_string} sudah lunas.");
+        }
+
+        $settledBooking = $this->bookingService->settleBookingOnline($booking, $request->input('payment_method'));
+        $formattedRemaining = number_format($remaining, 0, ',', '.');
+        $msg = "Pelunasan online booking {$settledBooking->booking_id_string} sebesar Rp {$formattedRemaining} via {$request->input('payment_method')} berhasil! Status booking Anda kini telah LUNAS 100%.";
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => $msg,
+                'redirect_url' => route('booking.my'),
+                'data' => [
+                    'booking_id' => $settledBooking->booking_id_string,
+                    'status' => $settledBooking->status,
+                    'is_fully_paid' => true,
+                    'remaining_amount' => 0,
+                ],
+            ]);
+        }
+
+        return redirect()
+            ->route('booking.my')
+            ->with('success', $msg);
     }
 
     /*
