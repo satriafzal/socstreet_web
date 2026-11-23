@@ -101,7 +101,7 @@
                     <div class="lg:col-span-7 relative min-h-[300px] lg:min-h-[460px] bg-[#121212] flex items-center justify-center overflow-hidden border-b lg:border-b-0 lg:border-r border-[#27272A] group">
                         <!-- Real Minisoccer Pitch Image with Smooth Zoom Effect -->
                         <img
-                            src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1200&q=80"
+                            src="{{ asset('images/pitch-stadium-night.jpg') }}"
                             alt="Socstreet Main Arena Minisoccer Pitch"
                             class="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105 brightness-95 contrast-105"
                             onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=1200&q=80';"
