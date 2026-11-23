@@ -20,6 +20,7 @@ class Booking extends Model
         'end_time',
         'duration',
         'status',
+        'cancellation_reason',
         'total_price',
     ];
 
@@ -42,6 +43,39 @@ class Booking extends Model
     public function latestPayment(): HasOne
     {
         return $this->hasOne(Payment::class)->latestOfMany();
+    }
+
+    /**
+     * Total amount paid by customer for this booking.
+     */
+    public function paidAmount(): float
+    {
+        return (float) $this->payments()->where('status', 'paid')->sum('amount');
+    }
+
+    /**
+     * Remaining settlement balance.
+     */
+    public function remainingAmount(): float
+    {
+        $paid = $this->paidAmount();
+        return max(0, (float) $this->total_price - $paid);
+    }
+
+    /**
+     * Check whether this booking is fully paid (100%).
+     */
+    public function isFullyPaid(): bool
+    {
+        return $this->remainingAmount() <= 0 && $this->status === 'confirmed';
+    }
+
+    /**
+     * Check if cancellation caused DP forfeiture (DP Hangus).
+     */
+    public function isDpHangus(): bool
+    {
+        return $this->status === 'cancelled' && str_contains(strtolower($this->cancellation_reason ?? ''), 'hangus');
     }
 }
 
