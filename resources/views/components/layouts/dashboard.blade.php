@@ -154,5 +154,6 @@
             }
         }
     </script>
+    @stack('scripts')
 </x-layouts.app>
 
